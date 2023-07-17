@@ -1,3 +1,4 @@
+import json
 from google.cloud import storage
 
 DEFAULT_BUCKET_NAME = "sand_mining"
@@ -20,3 +21,8 @@ def list_subfolders(client: storage.Client, folder_name, bucket_name=DEFAULT_BUC
         subfolders.append(subfolder[:-1])  # [:-1] removes the '/' at the end of the string
 
     return subfolders
+
+def upload_json(client: storage.Client, obj, destination_path, bucket_name=DEFAULT_BUCKET_NAME):
+    bucket = client.get_bucket(bucket_name)
+    blob = bucket.blob(destination_path)
+    blob.upload_from_string(json.dumps(obj), content_type='application/json')    

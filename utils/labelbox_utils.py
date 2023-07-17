@@ -51,3 +51,29 @@ def create_data_row_dict(img_url, global_key):
         }]
     }
     return data_row_dict
+
+
+def get_annotation_objects_from_data_row_export(data_row_export):
+    projects = list(data_row_export['projects'].values())
+    # We expect that there exist only one "project"
+    assert len(projects) == 1
+
+    labels = projects[0]['labels']
+
+    # We expect that there exist only one "label"
+    assert len(labels) == 1  
+
+    return labels[0]['annotations']['objects']
+
+
+def get_geojson_fc_from_annotation_objects(annotation_objects):
+    polygons = [o['geojson'] for o in annotation_objects]
+
+    geojson_out = {
+        "type": "FeatureCollection",
+        "features": [
+            {"geometry": polygon}
+            for polygon in polygons
+        ]
+    }
+    return geojson_out

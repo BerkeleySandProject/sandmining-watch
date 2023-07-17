@@ -6,3 +6,10 @@ def get_date_from_key(key):
     # We'd prefer to set a datetime.date instead of a datetime.datetime,
     # but Labelbox doesn't accept a date. Therefore we set a timestamp.
     return datetime.datetime(int(year), int(month), int(day))
+
+def get_annotation_path(key):
+    splitted = key.split("_")
+    observation = "_".join(splitted[:4])
+    image = "_".join(splitted[:5])
+    path = f"labels/{observation}/annodations/{image}_annotations.geojson"
+    return path
