@@ -60,9 +60,13 @@ def get_annotation_objects_from_data_row_export(data_row_export):
 
     labels = projects[0]['labels']
 
-    # We expect that there exist only one "label"
-    assert len(labels) == 1  
+    if len(labels) == 0:
+        print("No labels, skipping data row.")
+        return []    
 
+    if len(labels) > 1:
+        raise ValueError(f"Unexpected number of labels")
+    
     return labels[0]['annotations']['objects']
 
 
