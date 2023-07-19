@@ -22,6 +22,20 @@ def list_subfolders(client: storage.Client, folder_name, bucket_name=DEFAULT_BUC
 
     return subfolders
 
+def list_files_in_folder(client: storage.Client, folder_name, bucket_name=DEFAULT_BUCKET_NAME):
+    bucket = client.get_bucket(bucket_name)
+    blobs = bucket.list_blobs(prefix=folder_name)
+    return list(blobs)
+
+def list_files_in_bucket_with_suffix(client: storage.Client, suffix, bucket_name=DEFAULT_BUCKET_NAME):
+    bucket = client.get_bucket(bucket_name)
+    files_with_suffix = []
+    for blob in bucket.list_blobs():
+        if blob.name.endswith(suffix):
+            files_with_suffix.append(blob.name)
+
+    return files_with_suffix
+
 def upload_json(client: storage.Client, obj, destination_path, bucket_name=DEFAULT_BUCKET_NAME):
     bucket = client.get_bucket(bucket_name)
     blob = bucket.blob(destination_path)

@@ -21,10 +21,8 @@ def show_image(img, title=''):
     ax.set_title(title)
     plt.show()
     
-def add_normalized_image_to_axis(ax, img):
-    colors_mins = img.reshape(-1, img.shape[-1]).min(axis=0)
-    colors_maxs = img.reshape(-1, img.shape[-1]).max(axis=0)
-    img_normalized = (img - colors_mins) / (colors_maxs - colors_mins)
+def add_normalized_image_to_axis(ax, img, norm_factor=4000):
+    img_normalized = img / norm_factor
     ax.matshow(img_normalized)
 
 def get_cmap_from_class_colors(class_colors):
@@ -36,23 +34,32 @@ def get_cmap_from_class_colors(class_colors):
     cmap = mcolors.ListedColormap(colors)
     return cmap
 
-def get_default_cmap(cvals=[0,  1], colors=["gray","red"]):
+def get_default_cmap(cvals=[0,  1], colors=CLASS_CONFIG_BINARY_SAND.colors):
     norm=plt.Normalize(min(cvals),max(cvals))
     tuples = list(zip(map(norm,cvals), colors))
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", tuples)
     return cmap
     
-def show_rgb_with_labels(rgb_img, label_img, class_colors=None):
+def show_rgb_with_labels(rgb_img, label_img):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     fig.tight_layout(w_pad=-2)
     add_normalized_image_to_axis(ax1, rgb_img)
     ax1.axis('off')
-    if class_colors:
-        cmap = get_cmap_from_class_colors(class_colors)
-    else:
-        cmap = get_default_cmap()
+    cmap = get_default_cmap()
     ax2.imshow(label_img, cmap=cmap)
     ax2.axis('off')
+    plt.show()
+
+def show_rgb_labels_preds(rgb_img, labels, predictions):
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 5))
+    fig.tight_layout(w_pad=-2)
+    add_normalized_image_to_axis(ax1, rgb_img)
+    cmap = get_default_cmap()
+    ax2.imshow(labels, cmap=cmap)
+    ax3.imshow(predictions, cmap=cmap)
+    ax1.axis('off')
+    ax2.axis('off')
+    ax3.axis('off')
     plt.show()
     
 def show_windows(img, windows, title=''):
