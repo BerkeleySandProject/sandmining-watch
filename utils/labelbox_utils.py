@@ -55,19 +55,41 @@ def create_data_row_dict(img_url, global_key):
 
 def get_annotation_objects_from_data_row_export(data_row_export):
     projects = list(data_row_export['projects'].values())
+
     # We expect that there exist only one "project"
     assert len(projects) == 1
-
     labels = projects[0]['labels']
 
-    if len(labels) == 0:
-        print("No labels, skipping data row.")
-        return []    
+    # We expect that there exist only one "labels"
+    assert len(labels) == 1
+    label = labels[0]
 
-    if len(labels) > 1:
-        raise ValueError(f"Unexpected number of labels")
-    
-    return labels[0]['annotations']['objects']
+    classifications = label['annotations']['classifications']
+    objects = label['annotations']['objects']
+    mine_activity = get_mine_activity_flag(classifications)
+
+    # Qualitiy check. The mine_activity flag must match whether annoted objects exist
+    if len(objects) > 0 and mine_activity is False:
+        raise ValueError("Quality check failed. There exists annotated objects, but mine activity flag is False")    
+    if len(objects) == 0 and mine_activity is True:
+        raise ValueError("Quality check failed. There exists no annotated objects, but mine activity flag is True")
+
+    # All good. Quality check is passed.
+    return objects
+
+
+FEATURE_SCHEMA_ID_MINE_FLAG = "clkiqxheb0ptz0705g7xd1soo"
+FEATURE_SCHEMA_ID_ANSWERS = {
+    "clkiqxhec0pu007052djj8li1": False,
+    "clkiqxhec0pu20705ht1qb0g9": True
+}
+def get_mine_activity_flag(data_row_classifications):
+    for classification in data_row_classifications:
+        if classification['feature_schema_id'] != FEATURE_SCHEMA_ID_MINE_FLAG:
+            continue
+        mine_flag_answer_id = classification['radio_answer']['feature_schema_id']
+        return FEATURE_SCHEMA_ID_ANSWERS[mine_flag_answer_id]
+    raise ValueError("Mine activity flag is missing.")
 
 
 def get_geojson_fc_from_annotation_objects(annotation_objects):
