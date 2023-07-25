@@ -61,7 +61,7 @@ def show_rgb_with_labels(img, label_img):
     ax2.axis('off')
     plt.show()
 
-def show_rgb_labels_preds(img, labels, predictions):
+def show_rgb_labels_preds(img, labels, predictions, title="", savefig_path=None):
     img = to_rgb(img)
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 5))
     fig.tight_layout(w_pad=-2)
@@ -69,10 +69,16 @@ def show_rgb_labels_preds(img, labels, predictions):
     cmap = get_default_cmap()
     ax2.imshow(labels, cmap=cmap)
     ax3.imshow(predictions, cmap=cmap)
+    ax1.set_title(title)
+    ax2.set_title('Labels')
+    ax3.set_title('Predictions')
     ax1.axis('off')
     ax2.axis('off')
     ax3.axis('off')
-    plt.show()
+    if savefig_path:
+        plt.savefig(savefig_path, dpi=300, bbox_inches='tight')
+    else:
+        plt.show()
     
 def show_windows(img, windows, title=''):
     img = to_rgb(img)
