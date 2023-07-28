@@ -25,16 +25,16 @@ def get_annotation_path(key):
     return path
 
 def get_annotations(gcp_client):
-    # Returns dictionary where key is site (e.g. "Ken_Banda_80-35_25-68")
-    # and value is list of paths to .annotations.geojson
+    # Returns dictionary where key is location (e.g. "Ken_Banda_80-35_25-68")
+    # and value is list of paths to _annotations.geojson
     all_annotations = list_files_in_bucket_with_suffix(gcp_client, "_annotations.geojson")
     annotations_dict = {}
     for annotation in all_annotations:
-        site = annotation.split("/")[1]
-        if site in annotations_dict:
-            annotations_dict[site].append(annotation)
+        location = annotation.split("/")[1]
+        if location in annotations_dict:
+            annotations_dict[location].append(annotation)
         else:
-            annotations_dict[site] = [annotation]
+            annotations_dict[location] = [annotation]
     return annotations_dict
 
 def annotations_path_to_bs(path:str):

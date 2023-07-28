@@ -1,7 +1,7 @@
 import json
 from google.cloud import storage
 
-DEFAULT_BUCKET_NAME = "sand_mining"
+from project_config import BUCKET_NAME as DEFAULT_BUCKET_NAME
 
 def get_public_url(path, bucket_name=DEFAULT_BUCKET_NAME):
     return f"https://storage.googleapis.com/{bucket_name}/{path}"

@@ -8,7 +8,7 @@ import random
 from rastervision.pytorch_learner.utils import color_to_triple
 from rastervision.pytorch_learner import SemanticSegmentationVisualizer
 
-from config import CLASS_CONFIG_BINARY_SAND, RGB_CHANNELS
+from project_config import CLASS_CONFIG, RGB_CHANNELS
 
 def to_rgb(img):
     if img.shape[2] == 3:
@@ -44,7 +44,7 @@ def get_cmap_from_class_colors(class_colors):
     cmap = mcolors.ListedColormap(colors)
     return cmap
 
-def get_default_cmap(cvals=[0,  1], colors=CLASS_CONFIG_BINARY_SAND.colors):
+def get_default_cmap(cvals=[0,  1], colors=CLASS_CONFIG.colors):
     norm=plt.Normalize(min(cvals),max(cvals))
     tuples = list(zip(map(norm,cvals), colors))
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", tuples)
@@ -61,7 +61,7 @@ def show_rgb_with_labels(img, label_img):
     ax2.axis('off')
     plt.show()
 
-def show_rgb_labels_preds(img, labels, predictions, title="", savefig_path=None):
+def show_rgb_labels_preds(img, labels, predictions, title="", show=False):
     img = to_rgb(img)
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 5))
     fig.tight_layout(w_pad=-2)
@@ -75,10 +75,11 @@ def show_rgb_labels_preds(img, labels, predictions, title="", savefig_path=None)
     ax1.axis('off')
     ax2.axis('off')
     ax3.axis('off')
-    if savefig_path:
-        plt.savefig(savefig_path, dpi=300, bbox_inches='tight')
-    else:
+    if show:
         plt.show()
+    else:
+        return fig
+
     
 def show_windows(img, windows, title=''):
     img = to_rgb(img)
@@ -99,7 +100,7 @@ def show_windows(img, windows, title=''):
     ax.set_title(title)
     plt.show()
     
-def show_labels(img, class_config=CLASS_CONFIG_BINARY_SAND):
+def show_labels(img, class_config=CLASS_CONFIG):
     fig, ax = plt.subplots(figsize=(5, 5))
     cmap = mcolors.ListedColormap(class_config.color_triples)
     ax.matshow(img, cmap=cmap)
