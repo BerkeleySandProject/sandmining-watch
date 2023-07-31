@@ -16,20 +16,9 @@ DISPLAY_GROUPS = {
     "IR": IR_CHANNELS,
 }
 
+# Labelbox
+LABELBOX_PROJECT_ID = "cljoqdjei070j0729f20hc5sx"
+
 # Google Cloud Platform
 GCP_PROJECT_NAME = "gee-sand"
 BUCKET_NAME = "sand_mining"
-
-# File schema
-LABEL_FILENAME_CONFIGS = {
-    'postfix_visual' : '_rgb.tif',
-    'postfix_analysis' : '_bs.tif',
-    #'postfix_timelapse' : '_Timelapse.MP4',
-    'postfix_annotations' : '_annotations.geojson'
-}
-LABEL_FOLDER_SCHEMA = {
-    'image' : '_bs',
-    'rgb' : '_rgb',
-    'timelapse' : '.',
-    'annotations' : 'annotations'
-}
