@@ -56,7 +56,8 @@ def observation_factory(gcp_client) -> List[ObservationPointer]:
             bs_path = annotations_path_to_bs(annotation_path)
             rgb_path = annotations_path_to_rgb(annotation_path)
             observation = ObservationPointer(
-                uri_to_bs=get_public_url(bs_path),
+                uri_to_s1="todo",
+                uri_to_s2=get_public_url(bs_path),
                 uri_to_rgb=get_public_url(rgb_path),
                 uri_to_annotations=get_public_url(annotation_path),
                 name=path_to_observatation_key(bs_path)
