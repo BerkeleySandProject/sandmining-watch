@@ -31,10 +31,6 @@ def show_image(img, title=''):
     ax.set_title(title)
     plt.show()
     
-def add_normalized_image_to_axis(ax, img, norm_factor=4000):
-    img_normalized = img / norm_factor
-    ax.matshow(img_normalized)
-
 def get_cmap_from_class_colors(class_colors):
     colors = [
         color_to_triple(c) if isinstance(c, str) else c
@@ -54,7 +50,7 @@ def show_rgb_with_labels(img, label_img):
     img = to_rgb(img)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     fig.tight_layout(w_pad=-2)
-    add_normalized_image_to_axis(ax1, img)
+    ax1.matshow(img)
     ax1.axis('off')
     cmap = get_default_cmap()
     ax2.imshow(label_img, cmap=cmap)
@@ -65,7 +61,7 @@ def show_rgb_labels_preds(img, labels, predictions, title="", show=False):
     img = to_rgb(img)
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 5))
     fig.tight_layout(w_pad=-2)
-    add_normalized_image_to_axis(ax1, img)
+    ax1.matshow(img)
     cmap = get_default_cmap()
     ax2.imshow(labels, cmap=cmap)
     ax3.imshow(predictions, cmap=cmap)
@@ -84,12 +80,7 @@ def show_rgb_labels_preds(img, labels, predictions, title="", show=False):
 def show_windows(img, windows, title=''):
     img = to_rgb(img)
     fig, ax = plt.subplots(1, 1, squeeze=True, figsize=(8, 8))
-
-    # colors_mins = img.reshape(-1, img.shape[-1]).min(axis=0)
-    # colors_maxs = img.reshape(-1, img.shape[-1]).max(axis=0)
-    # img_normalized = (img - colors_mins) / (colors_maxs - colors_mins)
-    # ax.matshow(img_normalized)
-    add_normalized_image_to_axis(ax, img)
+    ax.matshow(img)
     
     ax.axis('off')
     # draw windows on top of the image
