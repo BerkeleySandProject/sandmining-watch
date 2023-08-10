@@ -5,6 +5,8 @@ from rastervision.core.data import (
     SemanticSegmentationLabels, SemanticSegmentationLabelSource
 )
 
+from rastervision.core.data.raster_transformer.nan_transformer import NanTransformer
+
 from rastervision.core.data.raster_source import RasterSource
 from rastervision.pytorch_learner import (
     SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationLearner,
@@ -60,7 +62,8 @@ def create_s2_image_source(img_uri, channels=S2_CHANNELS):
         channel_order=channels,
         allow_streaming=False,
         raster_transformers=[
-            RemoveNanTransformer(),
+            NanTransformer(),
+            # RemoveNanTransformer(),
             NormS2Transformer()
         ],
     )
