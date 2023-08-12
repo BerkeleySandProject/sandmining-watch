@@ -17,7 +17,7 @@ from torch.utils.data import Dataset
 
 from project_config import CLASS_NAME, CLASS_CONFIG, S2_CHANNELS
 from utils.schemas import ObservationPointer
-from utils.sandmining_ml_utils import NormS1Transformer, NormS2Transformer, RemoveNanTransformer
+from utils.sandmining_ml_utils import NormS1Transformer, NormS2Transformer
 
 
 def observation_to_scene(observation: ObservationPointer, channels) -> Scene:
@@ -63,7 +63,6 @@ def create_s2_image_source(img_uri, channels=S2_CHANNELS):
         allow_streaming=False,
         raster_transformers=[
             NanTransformer(),
-            # RemoveNanTransformer(),
             NormS2Transformer()
         ],
     )
