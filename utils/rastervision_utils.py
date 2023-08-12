@@ -107,7 +107,7 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
     return scene
 
 def scene_to_validation_ds(scene: Scene, tile_size: int):
-    # No augementation and windows don't overlap
+    # No augementation and windows don't overlap. Use for validation during training time.
     return SemanticSegmentationSlidingWindowGeoDataset(
         scene,
         size=tile_size,
@@ -127,6 +127,18 @@ def scene_to_training_ds(scene: Scene, tile_size: int, augmentation):
         padding=None,
         pad_direction='both',
         transform=augmentation,
+        normalize=False
+    )
+
+def scene_to_prediction_ds(scene: Scene, tile_size: int):
+    # No augmentation and overlapping windows
+    return SemanticSegmentationSlidingWindowGeoDataset(
+        scene,
+        size=tile_size,
+        stride=int(tile_size / 2),
+        padding=None,
+        pad_direction='both',
+        transform=None,
         normalize=False
     )
 
@@ -164,19 +176,21 @@ def construct_semantic_segmentation_learner(
 def get_predictions_for_site(
         learner: SemanticSegmentationLearner,
         ds: SemanticSegmentationSlidingWindowGeoDataset,
+        crop_sz = None
     ):
     predictions = learner.predict_dataset(
         ds,
         raw_out=True,
         numpy_out=True,
-        progress_bar=True
+        progress_bar=False,
     )
     pred_labels = SemanticSegmentationLabels.from_predictions(
         ds.windows,
         predictions,
         smooth=True,
         extent=ds.scene.extent,
-        num_classes=len(CLASS_CONFIG)
+        num_classes=len(CLASS_CONFIG),
+        crop_sz=crop_sz
     )
     scores = pred_labels.get_score_arr(pred_labels.extent)
     predicted_mine_probability = scores[CLASS_CONFIG.get_class_id(CLASS_NAME)]
