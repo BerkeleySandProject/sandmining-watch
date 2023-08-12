@@ -125,7 +125,7 @@ def scene_to_training_ds(scene: Scene, tile_size: int, augmentation):
         size=tile_size,
         stride=int(tile_size / 2),
         padding=None,
-        pad_direction='both',
+        pad_direction='end',
         transform=augmentation,
         normalize=False
     )
