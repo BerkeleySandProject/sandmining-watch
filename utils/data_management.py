@@ -5,8 +5,9 @@ from .schemas import ObservationPointer
 from .gcp_utils import list_files_in_bucket_with_suffix, get_public_url
 
 def get_date_from_key(key: str):
-    # Example: From "Sone_Rohtas_84-21_24-91_2022-03-01_rgb.tif" this function returns a the datetime 2022-03-01 00:00:00
-    year, month, day = key.split("_")[-2].split("-")
+    # Example: From "Sone_Rohtas_84-21_24-91_2022-03-01_rgb_jhjhfhdd" this function returns a the datetime 2022-03-01 00:00:00
+
+    year, month, day = key.split("_")[4].split("-")
     # We'd prefer to set a datetime.date instead of a datetime.datetime,
     # but Labelbox doesn't accept a date. Therefore we set a timestamp.
     return datetime.datetime(int(year), int(month), int(day))
