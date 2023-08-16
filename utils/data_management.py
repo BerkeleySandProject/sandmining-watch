@@ -22,7 +22,11 @@ def get_annotation_path(key):
     splitted = key.split("_")
     observation = "_".join(splitted[:4])
     image = "_".join(splitted[:5])
-    path = f"labels/{observation}/annotations/{image}_annotations.geojson"
+    # HACK. Need this to make annotion export to GCP work.
+    # But this hack should not need to be necessary.
+    # TODO: Fix problem at its root and remove the hack
+    #path = f"labels/{observation}/annotations/{image}_annotations.geojson"
+    path = f"labels/{observation}_median/annotations/{image}_annotations.geojson"
     return path
 
 def get_annotations(gcp_client):
