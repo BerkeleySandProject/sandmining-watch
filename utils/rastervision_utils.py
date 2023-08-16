@@ -72,7 +72,10 @@ def create_s1_image_source(img_uri, channels=None):
         img_uri,
         channel_order=channels,
         allow_streaming=False,
-        raster_transformers=[NormS1Transformer()]
+        raster_transformers=[
+            NanTransformer(),
+            NormS1Transformer()
+        ]
     )
 
 def create_s1s2_multirastersource(s2_uri, s1_uri) -> MultiRasterSource:
@@ -82,6 +85,16 @@ def create_s1s2_multirastersource(s2_uri, s1_uri) -> MultiRasterSource:
         [s2_source, s1_source],
     )
     return s1s2_source
+
+def warn_if_nan_in_raw_scene(scene: Scene):
+    if isinstance(scene.raster_source, MultiRasterSource):
+        raster_sources = scene.raster_source.raster_sources
+    else:
+        raster_sources = [scene.raster_source]
+    for raster_source in raster_sources:
+        raw_image = raster_source.get_raw_image_array()
+        if np.isnan(raw_image).any():
+            print(f"WARNING: NaN in raw image {raster_source.uris}")
 
 def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_uri, scene_id) -> Scene:
     vector_source = GeoJSONVectorSource(
