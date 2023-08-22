@@ -22,5 +22,5 @@ DISPLAY_GROUPS = {
 LABELBOX_PROJECT_ID = "cllbeyixh0bxt07uxfvg977h3"
 
 # Google Cloud Platform
-GCP_PROJECT_NAME = "gee-sand"
+GCP_PROJECT_NAME = "gee-sand-median"
 BUCKET_NAME = "sand_mining_median"
