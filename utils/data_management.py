@@ -22,7 +22,11 @@ def get_annotation_path(key):
     splitted = key.split("_")
     observation = "_".join(splitted[:4])
     image = "_".join(splitted[:5])
-    path = f"labels/{observation}/annotations/{image}_annotations.geojson"
+    # HACK. Need this to make annotion export to GCP work.
+    # But this hack should not need to be necessary.
+    # TODO: Fix problem at its root and remove the hack
+    #path = f"labels/{observation}/annotations/{image}_annotations.geojson"
+    path = f"labels/{observation}_median/annotations/{image}_annotations.geojson"
     return path
 
 def get_annotations(gcp_client):
@@ -38,15 +42,18 @@ def get_annotations(gcp_client):
             annotations_dict[location] = [annotation]
     return annotations_dict
 
-def annotations_path_to_bs(path:str):
-    return path.replace("annotations", "bs").replace(".geojson", ".tif")
+def annotations_path_to_s2(path:str):
+    return path.replace("annotations", "s2").replace(".geojson", ".tif")
+
+def annotations_path_to_s1(path:str):
+    return path.replace("annotations", "s1").replace(".geojson", ".tif")
 
 def annotations_path_to_rgb(path:str):
     return path.replace("annotations", "rgb").replace(".geojson", ".tif")
 
 def path_to_observatation_key(path):
     observation_key:str = path.split("/")[-1]
-    remove_strings = ["_rb.tif", "_bs.tif", "_annotations.geojson"]
+    remove_strings = ["_rb.tif", "_bs.tif", "_annotations.geojson", "_s1.tif", "_s2.tif"]
     for remove_string in remove_strings:
         observation_key = observation_key.replace(remove_string, "")
     return observation_key
@@ -54,13 +61,14 @@ def path_to_observatation_key(path):
 def observation_factory(gcp_client) -> List[ObservationPointer]:
     for site, annotations in get_annotations(gcp_client).items():
         for annotation_path in annotations:
-            bs_path = annotations_path_to_bs(annotation_path)
+            s2_path = annotations_path_to_s2(annotation_path)
+            s1_path = annotations_path_to_s1(annotation_path)
             rgb_path = annotations_path_to_rgb(annotation_path)
             observation = ObservationPointer(
-                uri_to_s1="todo",
-                uri_to_s2=get_public_url(bs_path),
+                uri_to_s1=get_public_url(s1_path),
+                uri_to_s2=get_public_url(s2_path),
                 uri_to_rgb=get_public_url(rgb_path),
                 uri_to_annotations=get_public_url(annotation_path),
-                name=path_to_observatation_key(bs_path)
+                name=path_to_observatation_key(s2_path)
             )
             yield observation
