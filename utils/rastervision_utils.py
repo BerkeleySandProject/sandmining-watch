@@ -15,19 +15,10 @@ from rastervision.pytorch_learner import (
 import torch.nn as nn
 from torch.utils.data import Dataset
 
-from project_config import CLASS_NAME, CLASS_CONFIG, S2_CHANNELS
+from project_config import CLASS_NAME, CLASS_CONFIG
 from utils.schemas import ObservationPointer
 from utils.sandmining_ml_utils import NormS1Transformer, NormS2Transformer
 
-
-def observation_to_scene(observation: ObservationPointer, channels) -> Scene:
-    # TODO remove this function when deprecated
-    return create_scene(
-        observation.uri_to_s2,
-        observation.uri_to_annotations,
-        observation.name,
-        channels,
-    )
 
 def observation_to_scene_s1s2(observation: ObservationPointer) -> Scene:
     return create_scene_s1s2(
@@ -36,16 +27,6 @@ def observation_to_scene_s1s2(observation: ObservationPointer) -> Scene:
         label_uri=observation.uri_to_annotations,
         scene_id=observation.name,
     )
-
-def create_scene(img_uri, label_uri, scene_id, channels) -> Scene:
-    # TODO remove this function when deprecated
-    img_raster_source = create_s2_image_source(img_uri)
-    scene = rastersource_with_labeluri_to_scene(
-        img_raster_source,
-        label_uri,
-        scene_id
-    )
-    return scene
 
 def create_scene_s1s2(s2_uri, s1_uri, label_uri, scene_id) -> Scene:
     s1s2_source = create_s1s2_multirastersource(s2_uri, s1_uri)
@@ -56,7 +37,7 @@ def create_scene_s1s2(s2_uri, s1_uri, label_uri, scene_id) -> Scene:
     )
     return scene
 
-def create_s2_image_source(img_uri, channels=S2_CHANNELS):
+def create_s2_image_source(img_uri, channels=None):
     return RasterioSource(
         img_uri,
         channel_order=channels,

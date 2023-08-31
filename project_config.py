@@ -9,7 +9,6 @@ CLASS_CONFIG = ClassConfig(
 
 # Band order in _s1.tif ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']
 # Band order in _s2.tif ['VV', 'VH']
-S2_CHANNELS = range(0,12)
 RGB_CHANNELS = [3, 2, 1]
 IR_CHANNELS = [11, 10, 9]
 DISPLAY_GROUPS = {
