@@ -16,20 +16,32 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 
 from project_config import CLASS_NAME, CLASS_CONFIG
+from experiment_config import SupervisedTrainingConfig, DatasetChoice, S2NormChoice
 from utils.schemas import ObservationPointer
-from utils.sandmining_ml_utils import NormS1Transformer, NormS2Transformer
+from utils.sandmining_ml_utils import NormS1Transformer, NormS2Transformer, SatMaeNormS2Transformer
 
 
-def observation_to_scene_s1s2(observation: ObservationPointer) -> Scene:
-    return create_scene_s1s2(
-        s2_uri=observation.uri_to_s2,
-        s1_uri=observation.uri_to_s1,
-        label_uri=observation.uri_to_annotations,
-        scene_id=observation.name,
-    )
+def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
+    if config.datasets == DatasetChoice.S1S2:
+        return create_scene_s1s2(
+            config,
+            s2_uri=observation.uri_to_s2,
+            s1_uri=observation.uri_to_s1,
+            label_uri=observation.uri_to_annotations,
+            scene_id=observation.name,
+        )
+    elif config.datasets == DatasetChoice.S2:
+        return create_scene_s2(
+            config,
+            s2_uri=observation.uri_to_s2,
+            label_uri=observation.uri_to_annotations,
+            scene_id=observation.name,
+        )
+    else:
+        raise ValueError("Unexped value for config.datasets")
 
-def create_scene_s1s2(s2_uri, s1_uri, label_uri, scene_id) -> Scene:
-    s1s2_source = create_s1s2_multirastersource(s2_uri, s1_uri)
+def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id) -> Scene:
+    s1s2_source = create_s1s2_multirastersource(config, s2_uri, s1_uri)
     scene = rastersource_with_labeluri_to_scene(
         s1s2_source,
         label_uri,
@@ -37,21 +49,37 @@ def create_scene_s1s2(s2_uri, s1_uri, label_uri, scene_id) -> Scene:
     )
     return scene
 
-def create_s2_image_source(img_uri, channels=None):
+def create_scene_s2(config, s2_uri, label_uri, scene_id) -> Scene:
+    s2_source = create_s2_image_source(config, s2_uri)
+    scene = rastersource_with_labeluri_to_scene(
+        s2_source,
+        label_uri,
+        scene_id
+    )
+    return scene
+
+def create_s2_image_source(config, img_uri):
+    transformer_config_map = {
+        S2NormChoice.SatMAE: [
+            NanTransformer(),
+            SatMaeNormS2Transformer(),
+        ],
+        S2NormChoice.Div: [
+            NanTransformer(),
+            NormS2Transformer(),
+        ]
+    }
     return RasterioSource(
         img_uri,
-        channel_order=channels,
+        channel_order=config.s2_channels,
         allow_streaming=False,
-        raster_transformers=[
-            NanTransformer(),
-            NormS2Transformer()
-        ],
+        raster_transformers=transformer_config_map[config.s2_norming]
     )
 
-def create_s1_image_source(img_uri, channels=None):
+def create_s1_image_source(config, img_uri):
     return RasterioSource(
         img_uri,
-        channel_order=channels,
+        channel_order=None,
         allow_streaming=False,
         raster_transformers=[
             NanTransformer(),
@@ -59,19 +87,19 @@ def create_s1_image_source(img_uri, channels=None):
         ]
     )
 
-def create_s1s2_multirastersource(s2_uri, s1_uri) -> MultiRasterSource:
-    s2_source = create_s2_image_source(s2_uri)
-    s1_source = create_s1_image_source(s1_uri)
+def create_s1s2_multirastersource(config, s2_uri, s1_uri) -> MultiRasterSource:
+    s2_source = create_s2_image_source(config, s2_uri)
+    s1_source = create_s1_image_source(config, s1_uri)
     s1s2_source = MultiRasterSource(
         [s2_source, s1_source],
     )
     return s1s2_source
 
-def warn_if_nan_in_raw_scene(scene: Scene):
-    if isinstance(scene.raster_source, MultiRasterSource):
-        raster_sources = scene.raster_source.raster_sources
+def warn_if_nan_in_raw_raster(raster_source):
+    if isinstance(raster_source, MultiRasterSource):
+        raster_sources = raster_source.raster_sources
     else:
-        raster_sources = [scene.raster_source]
+        raster_sources = [raster_source]
     for raster_source in raster_sources:
         raw_image = raster_source.get_raw_image_array()
         if np.isnan(raw_image).any():
@@ -100,40 +128,37 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
     scene = Scene(id=scene_id, raster_source=img_raster_source, label_source=label_source)
     return scene
 
-def scene_to_validation_ds(scene: Scene, tile_size: int):
+def scene_to_validation_ds(config, scene: Scene):
     # No augementation and windows don't overlap. Use for validation during training time.
     return SemanticSegmentationSlidingWindowGeoDataset(
         scene,
-        size=tile_size,
-        stride=tile_size,
-        padding=tile_size,
+        size=config.tile_size,
+        stride=config.tile_size,
+        padding=config.tile_size,
         pad_direction='end',
         transform=None,
-        normalize=False
     )
 
-def scene_to_training_ds(scene: Scene, tile_size: int, augmentation):
+def scene_to_training_ds(config, scene: Scene):
     # Has augementation and overlapping windows
     return SemanticSegmentationSlidingWindowGeoDataset(
         scene,
-        size=tile_size,
-        stride=int(tile_size / 2),
+        size=config.tile_size,
+        stride=int(config.tile_size / 2),
         padding=None,
         pad_direction='end',
-        transform=augmentation,
-        normalize=False
+        transform=config.augmentations,
     )
 
-def scene_to_prediction_ds(scene: Scene, tile_size: int):
+def scene_to_prediction_ds(config, scene: Scene):
     # No augmentation and overlapping windows
     return SemanticSegmentationSlidingWindowGeoDataset(
         scene,
-        size=tile_size,
-        stride=int(tile_size / 2),
+        size=config.tile_size,
+        stride=int(config.tile_size / 2),
         padding=None,
         pad_direction='both',
         transform=None,
-        normalize=False
     )
 
 def construct_semantic_segmentation_learner(
