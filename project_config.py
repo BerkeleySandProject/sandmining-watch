@@ -28,7 +28,7 @@ class S2Band(Enum):
     B12 = 11
 
 
-RGB_CHANNELS = [3, 2, 1]
+RGB_CHANNELS = [3, 2, 1]  # TODO generalize this (does not work when subset of bands are selected)
 #IR_CHANNELS = [11, 10, 9]
 DISPLAY_GROUPS = {
     "RGB": RGB_CHANNELS,

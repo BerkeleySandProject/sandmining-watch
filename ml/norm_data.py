@@ -30,6 +30,9 @@ SATMEA_NORM_STD = np.array([
             1310.36996126, 1087.6020813])
 
 class SatMaeNormS2Transformer(RasterTransformer):
+    """
+    The SatMae encoder was learned using this.
+    """
     def __init__(self):
         self.min_value = SATMEA_NORM_MEAN - 2 * SATMEA_NORM_STD
         self.max_value = SATMEA_NORM_MEAN + 2 * SATMEA_NORM_STD
