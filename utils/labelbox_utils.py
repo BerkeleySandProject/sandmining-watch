@@ -5,6 +5,18 @@ from .data_management import get_date_from_key
 
 MAPBOX_API_KEY = os.getenv('MAPBOX_API_KEY')
 
+
+def check_if_dataset_exists(client: Client, dataset_name) -> bool:
+    datasets = list(client.get_datasets(
+        where=(Dataset.name == dataset_name)
+    ))
+    if len(datasets) == 0:
+        return False
+    elif len(datasets) == 1:
+        return True
+    else:
+        raise ValueError("More than 1 dataset found")
+
 def get_or_create_single_dataset(client: Client, dataset_name) -> Dataset:
     datasets = list(client.get_datasets(
         where=(Dataset.name == dataset_name)
