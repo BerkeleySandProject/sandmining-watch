@@ -3,6 +3,7 @@ from rastervision.pytorch_learner import (
     SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationLearner,
     SemanticSegmentationGeoDataConfig, SolverConfig, SemanticSegmentationLearnerConfig
 )
+from .custom_learner import CustomSemanticSegmentationLearner
 import torch.nn as nn
 from torch.utils.data import Dataset
 
@@ -17,7 +18,7 @@ def construct_semantic_segmentation_learner(
         learning_rate,
         experiment_dir,
         class_loss_weights=None,
-) -> SemanticSegmentationLearner:
+) -> CustomSemanticSegmentationLearner:
     # If a last-model.pth exists in experiment_dir, the learner will load its weights. 
     data_cfg = SemanticSegmentationGeoDataConfig(
         class_names=CLASS_CONFIG.names,
@@ -30,7 +31,7 @@ def construct_semantic_segmentation_learner(
         class_loss_weights=class_loss_weights
     )
     learner_cfg = SemanticSegmentationLearnerConfig(data=data_cfg, solver=solver_cfg)
-    learner = SemanticSegmentationLearner(
+    learner = CustomSemanticSegmentationLearner(
         cfg=learner_cfg,
         output_dir=experiment_dir,
         model=model,
