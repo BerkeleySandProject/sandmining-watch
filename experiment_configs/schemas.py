@@ -4,20 +4,13 @@ from typing import Optional, List
 
 import albumentations as A
 
-class ModelChoice(Enum):
-    UnetSmall = 1
-    UnetOrig = 2
-    Segformer = 3
-    SatmaeBaseLinearDecoder = 4
-    SatmaeBaseDoubleUpsampling = 5
+from models.model_factory import ModelChoice
+from ml.norm_data import S2NormChoice
 
-class S2NormChoice(Enum):
-    SatMAE = "satmae"
-    Div = "div"
 
 class DatasetChoice(Enum):
-    S2 = "s2"
-    S1S2 = "s1s2"
+    S2 = "s2" # Only S2 data
+    S1S2 = "s1s2"  # S1 and S2 data
 
 
 @dataclass

@@ -1,7 +1,9 @@
+from enum import Enum
 import numpy as np
 from typing import Optional
 
 from rastervision.core.data.raster_transformer.raster_transformer import RasterTransformer
+from rastervision.core.data.raster_transformer.nan_transformer import NanTransformer
 
 
 class NormS2Transformer(RasterTransformer):
@@ -44,3 +46,26 @@ class SatMaeNormS2Transformer(RasterTransformer):
         chip = (chip - min_value_filtered_channels) / (max_value_filtered_channels - min_value_filtered_channels) * 255.0
         chip = np.clip(chip, 0, 255).astype(np.uint8)
         return chip
+
+
+
+"""
+We have a set of possible approaches to norm S2 data.
+"""
+
+class S2NormChoice(Enum):
+    # This enum should list all possible approaches.
+    # This enum used to configure experiments.
+    SatMAE = "satmae" # Copy of SatMAE norming. Required to use this when working with pretrained SatMAE
+    Div = "div" # Divide all pixel values by constant
+
+s2_norm_transformer_config_map = {
+    S2NormChoice.SatMAE: [
+        NanTransformer(),
+        SatMaeNormS2Transformer(),
+    ],
+    S2NormChoice.Div: [
+        NanTransformer(),
+        NormS2Transformer(),
+    ]
+}

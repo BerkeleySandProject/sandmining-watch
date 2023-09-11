@@ -1,7 +1,17 @@
+from enum import Enum
+
 from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningCofig, ModelChoice
 from typing import Union
 
-def get_model(
+class ModelChoice(Enum):
+    UnetSmall = 1
+    UnetOrig = 2
+    Segformer = 3
+    SatmaeBaseLinearDecoder = 4
+    SatmaeBaseDoubleUpsampling = 5
+
+
+def model_factory(
         config: Union[SupervisedTrainingConfig, SupervisedFinetuningCofig] ,
         n_channels,
         n_classes = 2,
