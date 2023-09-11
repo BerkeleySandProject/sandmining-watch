@@ -4,8 +4,15 @@ from typing import Optional, List
 
 import albumentations as A
 
-from models.model_factory import ModelChoice
 from ml.norm_data import S2NormChoice
+
+
+class ModelChoice(Enum):
+    UnetSmall = 1
+    UnetOrig = 2
+    Segformer = 3
+    SatmaeBaseLinearDecoder = 4
+    SatmaeBaseDoubleUpsampling = 5
 
 
 class DatasetChoice(Enum):
