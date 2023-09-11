@@ -19,12 +19,18 @@ def get_model(
         segformer_config = SegformerConfig(num_channels=n_channels, **kwargs)
         model = SegformerForSemanticSegmentationForRV(segformer_config, img_size=(config.tile_size, config.tile_size))
     elif config.model_type == ModelChoice.SatmaeBaseLinearDecoder:
-        from models.satmae.satmae_spectral_base_custom_decoder import SatMaeSegmenterWithLinearDecoder
+        from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_linear_decoder import SatMaeSegmenterWithLinearDecoder
         model = SatMaeSegmenterWithLinearDecoder()
+    elif config.model_type == ModelChoice.SatmaeBaseDoubleUpsampling:
+        from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_double_upsampling import SatMaeSegmenterWithDoubleUpsampling
+        model = SatMaeSegmenterWithDoubleUpsampling()
+    else:
+        raise ValueError("Error in model selection")
+    
+    if isinstance(config, SupervisedFinetuningCofig):
         if config.encoder_weights_path:
             model.load_encoder_weights(config.encoder_weights_path)
         if config.freeze_encoder_weights:
             model.freeze_encoder_weights()
-    else:
-        raise ValueError("Error in model selection")
+    
     return model

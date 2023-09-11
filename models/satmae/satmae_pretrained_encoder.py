@@ -1,14 +1,15 @@
 import torch
 from torch import nn
-from einops import rearrange
 
 from .models_vit_group_channels import vit_base_patch16
-from .decoders.decoder_linear import DecoderLinear
 from .util.pos_embed import interpolate_pos_embed
 from .pretrained_satmae_config import CHANNEL_GROUPS, PATCH_SIZE, INPUT_SIZE
 
-
-class SatMaeSegmenterWithLinearDecoder(nn.Module):
+class SatMaePretrained(nn.Module):
+    """
+    A SatMaePretrained holds the pretrained SatMAE spectral encoder in the 'base' size.
+    We inherited from this class to construct SatMAE encoder + custom decoder models.
+    """
     def __init__(self):
         super().__init__()
         self.encoder = vit_base_patch16(
@@ -18,12 +19,8 @@ class SatMaeSegmenterWithLinearDecoder(nn.Module):
             use_encoder_only=True,
         )
         self.n_channel_groups = len(CHANNEL_GROUPS)
-
-        self.decoder = DecoderLinear(
-            n_cls=2,
-            patch_size=PATCH_SIZE,
-            d_encoder=self.encoder.embed_dim * self.n_channel_groups,
-        )
+        self.encoder_real_depth = self.encoder.embed_dim * self.n_channel_groups
+        self.n_patches_along_axis = INPUT_SIZE // PATCH_SIZE # In SatMAE notation: H/P or W/P (because H=W, input is quadratic)
 
     def load_encoder_weights(self, path_to_weights):
         print(f"SatMaeSegmenterWithLinearDecoder: Loading encoder weights from {path_to_weights}")
@@ -40,22 +37,8 @@ class SatMaeSegmenterWithLinearDecoder(nn.Module):
         print(msg) 
         
     def freeze_encoder_weights(self):
-        print("SatMaeSegmenterWithLinearDecoder: Freezing encoder weights")
+        print("SatMaePretrained: Freezing encoder weights")
         for param in self.encoder.parameters():
             param.requires_grad = False
-        # Except channel_cls_embed. These weights are not loaded from checkpoint. So I think we need to learn them.
+        # Except channel_cls_embed. These weights are not loaded from checkpoint. We want to learn them.
         self.encoder.channel_cls_embed.requires_grad = True
-
-    def forward(self, im):
-        x = self.encoder(im)
-        
-        # remove CLS/DIST tokens for decoding
-        x = x[:, 1:]  # (N, cL, D)
-
-        x = rearrange(x, 'N (c L) D -> N L (c D)', c=self.n_channel_groups)
-
-        logits = self.decoder(x, (INPUT_SIZE, INPUT_SIZE))
-        upsampled_logits = nn.functional.interpolate(
-            logits, size=(INPUT_SIZE, INPUT_SIZE), mode="bilinear", align_corners=False
-        )
-        return upsampled_logits

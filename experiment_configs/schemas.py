@@ -9,6 +9,7 @@ class ModelChoice(Enum):
     UnetOrig = 2
     Segformer = 3
     SatmaeBaseLinearDecoder = 4
+    SatmaeBaseDoubleUpsampling = 5
 
 class S2NormChoice(Enum):
     SatMAE = "satmae"
