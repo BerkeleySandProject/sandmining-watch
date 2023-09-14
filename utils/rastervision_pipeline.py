@@ -120,7 +120,7 @@ def scene_to_validation_ds(config, scene: Scene):
         scene,
         size=config.tile_size,
         stride=config.tile_size,
-        padding=config.tile_size,
+        padding=0,
         pad_direction='end',
         transform=None,
     )
@@ -131,7 +131,7 @@ def scene_to_training_ds(config, scene: Scene):
         scene,
         size=config.tile_size,
         stride=int(config.tile_size / 2),
-        padding=None,
+        padding=0,
         pad_direction='end',
         transform=config.augmentations,
     )
