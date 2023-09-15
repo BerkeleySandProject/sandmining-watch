@@ -4,7 +4,6 @@ from typing import Optional, List
 
 import albumentations as A
 
-from ml.norm_data import S2NormChoice
 
 
 class ModelChoice(Enum):
@@ -25,7 +24,6 @@ class SupervisedTrainingConfig:
     model_type: ModelChoice
     tile_size: int
     s2_channels: Optional[List[int]] # If none, RV will take all channels
-    s2_norming: S2NormChoice
     batch_size: int
     learning_rate: float
     output_dir: str

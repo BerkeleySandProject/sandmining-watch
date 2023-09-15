@@ -13,7 +13,7 @@ from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDat
 from project_config import CLASS_NAME, CLASS_CONFIG
 from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice
 from utils.schemas import ObservationPointer
-from ml.norm_data import NormS1Transformer, s2_norm_transformer_config_map
+from ml.norm_data import norm_s1_transformer, norm_s2_transformer
 
 
 def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
@@ -54,12 +54,14 @@ def create_scene_s2(config, s2_uri, label_uri, scene_id) -> Scene:
     return scene
 
 def create_s2_image_source(config, img_uri):
-    transformers_norming = s2_norm_transformer_config_map[config.s2_norming]
     return RasterioSource(
         img_uri,
         channel_order=config.s2_channels,
         allow_streaming=False,
-        raster_transformers=transformers_norming
+        raster_transformers=[
+            NanTransformer(),
+            norm_s2_transformer,
+        ]
     )
 
 def create_s1_image_source(config, img_uri):
@@ -69,7 +71,7 @@ def create_s1_image_source(config, img_uri):
         allow_streaming=False,
         raster_transformers=[
             NanTransformer(),
-            NormS1Transformer()
+            norm_s1_transformer
         ]
     )
 
