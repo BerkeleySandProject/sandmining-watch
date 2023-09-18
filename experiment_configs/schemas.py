@@ -12,6 +12,7 @@ class ModelChoice(Enum):
     Segformer = 3
     SatmaeBaseLinearDecoder = 4
     SatmaeBaseDoubleUpsampling = 5
+    UnetResBlocks = 6
 
 
 class DatasetChoice(Enum):
