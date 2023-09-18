@@ -43,5 +43,8 @@ LABELBOX_PROJECT_ID = "cllbeyixh0bxt07uxfvg977h3"
 GCP_PROJECT_NAME = "gee-sand"
 BUCKET_NAME = "sand_mining_median"
 
+# Weight and Biases
+WANDB_PROJECT_NAME = "sandmine_detector"
+
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'

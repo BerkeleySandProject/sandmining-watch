@@ -1,17 +1,16 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, List
 
 import albumentations as A
 
 
-
 class ModelChoice(Enum):
-    UnetSmall = 1
-    UnetOrig = 2
-    Segformer = 3
-    SatmaeBaseLinearDecoder = 4
-    SatmaeBaseDoubleUpsampling = 5
+    UnetSmall = "unet-small"
+    UnetOrig = "unet-orig"
+    Segformer = "segformer"
+    SatmaeBaseLinearDecoder = "satmae-base-linear-decoder"
+    SatmaeBaseDoubleUpsampling = "satmae-base-double-upsampling"
 
 
 class DatasetChoice(Enum):
@@ -29,6 +28,7 @@ class SupervisedTrainingConfig:
     output_dir: str
     datasets: DatasetChoice
     augmentations: A.Compose
+    mine_class_loss_weight: float
 
 @dataclass
 class SupervisedFinetuningCofig(SupervisedTrainingConfig):
