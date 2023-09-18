@@ -144,7 +144,7 @@ def scene_to_prediction_ds(config, scene: Scene):
         scene,
         size=config.tile_size,
         stride=int(config.tile_size / 2),
-        padding=None,
+        padding=config.tile_size,
         pad_direction='both',
         transform=None,
     )
