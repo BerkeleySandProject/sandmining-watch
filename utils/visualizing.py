@@ -8,14 +8,59 @@ import random
 from rastervision.pytorch_learner.utils import color_to_triple
 from rastervision.pytorch_learner import SemanticSegmentationVisualizer
 
-from project_config import CLASS_CONFIG, RGB_CHANNELS
+from project_config import CLASS_CONFIG, RGB_BANDS
 
-def to_rgb(img):
-    if img.shape[2] == 3:
-        return img
-    else:
-        img_rgb = img[:,:,RGB_CHANNELS]
-        return img_rgb
+
+class Visualizer():
+    """
+    This class solves the problem of knowing which channels in an images correspons to RGB.
+
+    Context:
+    - Our earth engine exports (*_s2.tif) contains a subset of channels from Sentinel 2.
+    - In our rastervision pipeline, we again (can) specify a subset of channels to use.
+      The remaining channels are ignored. We refer to this selection of channels as "s2_channels".
+      The reference is the channels in our earth engine export.
+    
+    """
+    def __init__(self, s2_channels):
+        self.rgb_channels = self.infer_rbg_channels(s2_channels)
+
+    @classmethod
+    def infer_rbg_channels(cls, s2_channels):
+        rgb_band_idx = [e.value for e in RGB_BANDS]
+        if s2_channels is None:
+            return rgb_band_idx
+        else:
+            return [s2_channels.index(idx) for idx in rgb_band_idx]
+        
+    def rgb_from_bandstack(self, image):
+        return image[:,:,self.rgb_channels]
+
+    def show_windows(self, img, windows, title=''):
+        rgb_img = self.rgb_from_bandstack(img)
+        fig, ax = plt.subplots(1, 1, squeeze=True, figsize=(8, 8))
+        ax.matshow(rgb_img)
+        
+        ax.axis('off')
+        # draw windows on top of the image
+        for w in windows:
+            p = patches.Polygon(w.to_points(), color='r', linewidth=1, fill=False)
+            ax.add_patch(p)
+        # draw second and second last window again in a different color
+        for w in [windows[1], windows[-2]]:
+            p = patches.Polygon(w.to_points(), color='b', linewidth=1, fill=False)
+            ax.add_patch(p)
+        ax.autoscale()
+        ax.set_title(title)
+        plt.show()
+
+    
+# def to_rgb(img):
+#     if img.shape[2] == 3:
+#         return img
+#     else:
+#         img_rgb = img[:,:,RGB_BANDS]
+#         return img_rgb
 
 def show_image(img, title=''):
     img = to_rgb(img)
@@ -85,24 +130,6 @@ def show_predictions(predictions, show=False):
     else:
         return fig
 
-    
-def show_windows(img, windows, title=''):
-    img = to_rgb(img)
-    fig, ax = plt.subplots(1, 1, squeeze=True, figsize=(8, 8))
-    ax.matshow(img)
-    
-    ax.axis('off')
-    # draw windows on top of the image
-    for w in windows:
-        p = patches.Polygon(w.to_points(), color='r', linewidth=1, fill=False)
-        ax.add_patch(p)
-    # draw second and second last window again in a different color
-    for w in [windows[1], windows[-2]]:
-        p = patches.Polygon(w.to_points(), color='b', linewidth=1, fill=False)
-        ax.add_patch(p)
-    ax.autoscale()
-    ax.set_title(title)
-    plt.show()
     
 def show_labels(img, class_config=CLASS_CONFIG):
     fig, ax = plt.subplots(figsize=(5, 5))
