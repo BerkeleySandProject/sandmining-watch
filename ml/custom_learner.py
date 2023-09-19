@@ -40,7 +40,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         wandb.define_metric("val_loss", summary="min")
         wandb.define_metric("train_loss", summary="min")
         wandb.define_metric("sandmine_f1", summary="max")
-        #wandb.watch(self.model)
+        wandb.watch(self.model, log_freq=100, log_graph=True)
 
     def get_config_dict_for_wandb_log(self):
         config_to_log = {}
