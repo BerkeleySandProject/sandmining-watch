@@ -40,5 +40,3 @@ class SatMaePretrained(nn.Module):
         print("SatMaePretrained: Freezing encoder weights")
         for param in self.encoder.parameters():
             param.requires_grad = False
-        # Except channel_cls_embed. These weights are not loaded from checkpoint. We want to learn them.
-        self.encoder.channel_cls_embed.requires_grad = True
