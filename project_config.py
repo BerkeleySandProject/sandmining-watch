@@ -28,12 +28,12 @@ class S2Band(Enum):
     B12 = 11
 
 
-RGB_CHANNELS = [3, 2, 1]  # TODO generalize this (does not work when subset of bands are selected)
+RGB_BANDS = [S2Band.B4, S2Band.B3, S2Band.B2]
 #IR_CHANNELS = [11, 10, 9]
-DISPLAY_GROUPS = {
-    "RGB": RGB_CHANNELS,
-    #"IR": IR_CHANNELS,
-}
+# DISPLAY_GROUPS = {
+#     "RGB": RGB_BANDS,
+#     "IR": IR_CHANNELS,
+# }
 
 
 # Labelbox
