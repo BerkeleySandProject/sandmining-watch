@@ -4,5 +4,5 @@ DEFAULT_AUGMENTATIONS = A.Compose([
     A.RandomRotate90(),
     A.HorizontalFlip(),
     A.VerticalFlip(),
-    A.CoarseDropout(max_height=32, max_width=32, max_holes=3)
+    #A.CoarseDropout(max_height=32, max_width=32, max_holes=3)
 ])
