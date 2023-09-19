@@ -5,6 +5,7 @@ import wandb
 from enum import Enum
 import albumentations as A
 
+from ml.model_stats import count_number_of_weights
 from project_config import WANDB_PROJECT_NAME
 
 class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
@@ -53,8 +54,16 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
                 config_to_log[key] = "None"
             else:
                 config_to_log[key] = val
-        config_to_log['Size training dataset'] = len(self.train_ds)
-        config_to_log['Size validation dataset'] = len(self.valid_ds)
+
+        n_weights_total, n_weights_trainable = count_number_of_weights(self.model)
+        config_to_log.update(
+            {
+                'Size training dataset': len(self.train_ds),
+                'Size validation dataset': len(self.valid_ds),
+                'Number weights total': n_weights_total,
+                'Number weights trainable': n_weights_trainable,
+            }
+        )
         return config_to_log
 
 def metrics_to_log_wand(metrics):
