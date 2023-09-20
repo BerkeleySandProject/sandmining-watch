@@ -7,6 +7,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from functools import reduce
+from operator import __add__
+
+def padding_size(kernel_sizes):
+    # https://discuss.pytorch.org/t/same-padding-equivalent-in-pytorch/85121
+    return reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_sizes[::-1]])
+
 
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
@@ -78,3 +85,70 @@ class OutConv(nn.Module):
 
     def forward(self, x):
         return self.conv(x)
+    
+
+# Resnet Blocks for Unets
+# https://medium.com/@nishanksingla/unet-with-resblock-for-semantic-segmentation-dd1766b4ff66
+# https://github.com/Nishanksingla/UNet-with-ResBlock/blob/master/resnet34_unet_model.py
+
+class ResBlockDown(nn.Module):
+    def __init__(self, in_channels, out_channels, max_pool=True):
+        super().__init__()
+        self.skip = nn.Sequential(
+            nn.ZeroPad2d(padding_size((1, 1))),
+            nn.Conv2d(in_channels, out_channels, (1, 1), bias=False))
+        self.conv1 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
+            nn.Conv2d(in_channels, out_channels, (3, 3)),
+            nn.ReLU(),
+            nn.BatchNorm2d(out_channels)
+        )
+        self.conv2 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
+            nn.Conv2d(out_channels, out_channels, (3, 3)),
+            nn.ReLU(),
+            nn.BatchNorm2d(out_channels)
+        )
+        self.max_pool = max_pool
+        
+    def forward(self, x):
+        skip = self.skip(x)
+        out = self.conv1(x)
+        out = self.conv2(out)
+        out = out + skip
+        out = F.relu(out)
+        if self.max_pool:
+            return out, F.max_pool2d(out, (2, 2))
+        else:
+            return out
+
+
+class ResBlockUp(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.skip = nn.Sequential(
+            nn.ZeroPad2d(padding_size((1, 1))),
+            nn.Conv2d(in_channels, out_channels, (1, 1), bias=False))
+        self.up_conv = nn.ConvTranspose2d(in_channels, out_channels, (2, 2), stride=2)
+        self.conv1 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
+            nn.Conv2d(in_channels, out_channels, (3, 3)),
+            nn.ReLU(),
+            nn.BatchNorm2d(out_channels)
+        )
+        self.conv2 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
+            nn.Conv2d(out_channels, out_channels, (3, 3)),
+            nn.ReLU(),
+            nn.BatchNorm2d(out_channels)
+        )
+    
+    def forward(self, x1, x2):
+        up_sampled = self.up_conv(x1)
+        concated = torch.cat((up_sampled, x2), dim=1)
+        skip = self.skip(concated)
+        out = self.conv1(concated)
+        out = self.conv2(out)
+        out = out + skip
+        out = F.relu(out)
+        return out

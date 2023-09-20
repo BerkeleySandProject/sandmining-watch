@@ -27,6 +27,9 @@ def model_factory(
     elif config.model_type == ModelChoice.SatmaeBaseDoubleUpsampling:
         from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_double_upsampling import SatMaeSegmenterWithDoubleUpsampling
         model = SatMaeSegmenterWithDoubleUpsampling()
+    elif config.model_type == ModelChoice.UnetResBlocks:
+        from models.unet.unet_resblocks import UNetResBlocks
+        model = UNetResBlocks(n_channels, n_classes)
     else:
         raise ValueError("Error in model selection")
     

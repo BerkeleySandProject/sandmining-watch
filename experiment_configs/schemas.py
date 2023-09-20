@@ -11,7 +11,7 @@ class ModelChoice(Enum):
     Segformer = "segformer"
     SatmaeBaseLinearDecoder = "satmae-base-linear-decoder"
     SatmaeBaseDoubleUpsampling = "satmae-base-double-upsampling"
-
+    UnetResBlocks = "unet-res-blocks"
 
 class DatasetChoice(Enum):
     S2 = "s2" # Only S2 data
