@@ -13,7 +13,6 @@ class ModelChoice(Enum):
     SatmaeBaseDoubleUpsampling = "satmae-base-double-upsampling"
     UnetResBlocks = "unet-res-blocks"
 
-
 class DatasetChoice(Enum):
     S2 = "s2" # Only S2 data
     S1S2 = "s1s2"  # S1 and S2 data
