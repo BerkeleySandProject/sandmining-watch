@@ -15,7 +15,7 @@ unet_fs_config = SupervisedTrainingConfig(
 
 unet_resblocks_config = SupervisedTrainingConfig(
     model_type=ModelChoice.UnetResBlocks,
-    tile_size=110,
+    tile_size=128,
     s2_channels=None,
     batch_size=64,
     learning_rate=3e-2,
