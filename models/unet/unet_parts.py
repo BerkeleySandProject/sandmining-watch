@@ -7,6 +7,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from functools import reduce
+from operator import __add__
+
+def padding_size(kernel_sizes):
+    # https://discuss.pytorch.org/t/same-padding-equivalent-in-pytorch/85121
+    return reduce(__add__, [(k // 2 + (k - 2 * (k // 2)) - 1, k // 2) for k in kernel_sizes[::-1]])
+
 
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
@@ -87,13 +94,17 @@ class OutConv(nn.Module):
 class ResBlockDown(nn.Module):
     def __init__(self, in_channels, out_channels, max_pool=True):
         super().__init__()
-        self.skip = nn.Conv2d(in_channels, out_channels, (1, 1), bias=False)
+        self.skip = nn.Sequential(
+            nn.ZeroPad2d(padding_size((1, 1))),
+            nn.Conv2d(in_channels, out_channels, (1, 1), bias=False))
         self.conv1 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(in_channels, out_channels, (3, 3)),
             nn.ReLU(),
             nn.BatchNorm2d(out_channels)
         )
         self.conv2 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(out_channels, out_channels, (3, 3)),
             nn.ReLU(),
             nn.BatchNorm2d(out_channels)
@@ -107,22 +118,26 @@ class ResBlockDown(nn.Module):
         out = out + skip
         out = F.relu(out)
         if self.max_pool:
-            return F.max_pool2d(out)
+            return out, F.max_pool2d(out, (2, 2))
         else:
             return out
 
-    
+
 class ResBlockUp(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.skip = nn.Conv2d(in_channels, out_channels, (1, 1))
-        self.up_conv = nn.ConvTranspose2d(out_channels, in_channels, (2, 2))
+        self.skip = nn.Sequential(
+            nn.ZeroPad2d(padding_size((1, 1))),
+            nn.Conv2d(in_channels, out_channels, (1, 1), bias=False))
+        self.up_conv = nn.ConvTranspose2d(in_channels, out_channels, (2, 2), stride=2)
         self.conv1 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(in_channels, out_channels, (3, 3)),
             nn.ReLU(),
             nn.BatchNorm2d(out_channels)
         )
         self.conv2 = nn.Sequential(
+            nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(out_channels, out_channels, (3, 3)),
             nn.ReLU(),
             nn.BatchNorm2d(out_channels)

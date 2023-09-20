@@ -23,11 +23,11 @@ class UNetResBlocks(nn.Module):
         self.classifier = OutConv(64, n_classes)
 
     def forward(self, x):
-        x1 = self.down1(x)
-        x2 = self.down2(x1)
-        x3 = self.down3(x2)
-        x4 = self.down4(x3)
-        out = self.bottleneck(x4)
+        x1, out = self.down1(x)
+        x2, out = self.down2(out)
+        x3, out = self.down3(out)
+        x4, out = self.down4(out)
+        out = self.bottleneck(out)
         out = self.up1(out, x4)
         out = self.up2(out, x3)
         out = self.up3(out, x2)
