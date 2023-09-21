@@ -59,7 +59,7 @@ class ResNet(nn.Module):
             raise NotImplementedError
 
         # Modules
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(12, 64, kernel_size=7, stride=2, padding=3,
                                 bias=False)
         self.bn1 = BatchNorm(64)
         self.relu = nn.ReLU(inplace=True)
