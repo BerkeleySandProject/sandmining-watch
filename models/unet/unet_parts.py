@@ -100,14 +100,14 @@ class ResBlockDown(nn.Module):
         self.conv1 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(in_channels, out_channels, (3, 3)),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.BatchNorm2d(out_channels)
         )
         self.conv2 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(out_channels, out_channels, (3, 3)),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.BatchNorm2d(out_channels)
         )
         self.max_pool = max_pool
         
@@ -133,14 +133,14 @@ class ResBlockUp(nn.Module):
         self.conv1 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(in_channels, out_channels, (3, 3)),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.BatchNorm2d(out_channels)
         )
         self.conv2 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
             nn.Conv2d(out_channels, out_channels, (3, 3)),
+            nn.BatchNorm2d(out_channels),
             nn.ReLU(),
-            nn.BatchNorm2d(out_channels)
         )
     
     def forward(self, x1, x2):
