@@ -99,13 +99,13 @@ class ResBlockDown(nn.Module):
             nn.Conv2d(in_channels, out_channels, (1, 1), bias=False))
         self.conv1 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
-            nn.Conv2d(in_channels, out_channels, (3, 3)),
+            nn.Conv2d(in_channels, out_channels, (3, 3), bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         )
         self.conv2 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
-            nn.Conv2d(out_channels, out_channels, (3, 3)),
+            nn.Conv2d(out_channels, out_channels, (3, 3), bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         )
@@ -132,13 +132,13 @@ class ResBlockUp(nn.Module):
         self.up_conv = nn.ConvTranspose2d(in_channels, out_channels, (2, 2), stride=2)
         self.conv1 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
-            nn.Conv2d(in_channels, out_channels, (3, 3)),
+            nn.Conv2d(in_channels, out_channels, (3, 3), bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         )
         self.conv2 = nn.Sequential(
             nn.ZeroPad2d(padding_size((3, 3))),
-            nn.Conv2d(out_channels, out_channels, (3, 3)),
+            nn.Conv2d(out_channels, out_channels, (3, 3), bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         )
