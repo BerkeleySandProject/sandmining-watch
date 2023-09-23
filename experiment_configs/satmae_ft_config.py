@@ -5,6 +5,7 @@ from os.path import expanduser
 
 satmae_ft_lineardecoder_config = SupervisedFinetuningCofig(
     model_type=ModelChoice.SatmaeBaseLinearDecoder,
+    optimizer=OptimizerChoice.SDG,
     tile_size=96,
     s2_channels=satmea_pretrained_encoder_bands_idx,
     batch_size=64,
@@ -19,6 +20,7 @@ satmae_ft_lineardecoder_config = SupervisedFinetuningCofig(
 
 satmae_ft_doubleupsampling_config = SupervisedFinetuningCofig(
     model_type=ModelChoice.SatmaeBaseDoubleUpsampling,
+    optimizer=OptimizerChoice.SDG,
     tile_size=96,
     s2_channels=satmea_pretrained_encoder_bands_idx,
     batch_size=64,

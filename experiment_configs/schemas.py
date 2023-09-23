@@ -13,6 +13,13 @@ class ModelChoice(Enum):
     SatmaeBaseDoubleUpsampling = "satmae-base-double-upsampling"
     UnetResBlocks = "unet-res-blocks"
 
+class OptimizerChoice(Enum):
+    AdamW = "adamw"
+    SDG = "sdg"
+
+class SchedulerChoice(Enum):
+    Cyclic = "cyclic"
+
 class DatasetChoice(Enum):
     S2 = "s2" # Only S2 data
     S1S2 = "s1s2"  # S1 and S2 data
@@ -21,6 +28,8 @@ class DatasetChoice(Enum):
 @dataclass
 class SupervisedTrainingConfig:
     model_type: ModelChoice
+    optimizer: OptimizerChoice
+    # scheduler: SchedulerChoice # wip, not yet implemented
     tile_size: int
     s2_channels: Optional[List[int]] # If none, RV will take all channels
     batch_size: int
