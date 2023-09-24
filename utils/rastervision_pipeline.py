@@ -143,8 +143,8 @@ def scene_to_prediction_ds(config, scene: Scene):
     return SemanticSegmentationSlidingWindowGeoDataset(
         scene,
         size=config.tile_size,
-        stride=int(config.tile_size / 2),
+        stride=config.tile_size,
         padding=config.tile_size,
-        pad_direction='both',
+        pad_direction='end',
         transform=None,
     )
