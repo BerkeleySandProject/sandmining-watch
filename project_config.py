@@ -8,6 +8,34 @@ CLASS_CONFIG = ClassConfig(
     null_class='other'
 ) 
 
+
+training_locations = [
+    "Ganges_Patna_85-1_25-66",
+    "Ganges_Patna_85-23_25-62",
+    "Betwa_Jalaun_79-49_25-84",
+    "Betwa_Jalaun_79-79_25-89",
+    "Mahananda_UttarDinajpur_88-25_26-46",
+    "Teesta_Jalpaiguri_88-6_26-84",
+    "Teesta_Jalpaiguri_88-64_26-85",
+]
+validation_locations = [
+    "Bhargavi_Khordha_85-88_20-26",
+    "Mahanadi_Angul_84-52_20-71",
+]
+
+def is_training(observation_key:str):
+    for training_location in training_locations:
+        if observation_key.startswith(training_location):
+            return True
+    return False
+
+def is_validation(observation_key:str):
+    for validation_location in validation_locations:
+        if observation_key.startswith(validation_location):
+            return True
+    return False
+
+
 # Band order in _s1.tif ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']
 # Band order in _s2.tif ['VV', 'VH']
 
