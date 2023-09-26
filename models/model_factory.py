@@ -30,6 +30,15 @@ def model_factory(
     elif config.model_type == ModelChoice.UnetResBlocks:
         from models.unet.unet_resblocks import UNetResBlocks
         model = UNetResBlocks(n_channels, n_classes)
+    elif config.model_type == ModelChoice.ResNet18UNet:
+        from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
+        model = ResNetEncoderUNetDecoder("resnet18", n_channels, n_classes)
+    elif config.model_type == ModelChoice.ResNet34UNet:
+        from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
+        model = ResNetEncoderUNetDecoder("resnet34", n_channels, n_classes)
+    elif config.model_type == ModelChoice.ResNet50UNet:
+        from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
+        model = ResNetEncoderUNetDecoder("resnet50", n_channels, n_classes)
     else:
         raise ValueError("Error in model selection")
     

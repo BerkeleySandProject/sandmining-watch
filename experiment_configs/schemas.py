@@ -12,6 +12,9 @@ class ModelChoice(Enum):
     SatmaeBaseLinearDecoder = "satmae-base-linear-decoder"
     SatmaeBaseDoubleUpsampling = "satmae-base-double-upsampling"
     UnetResBlocks = "unet-res-blocks"
+    ResNet18UNet = "resnet18-unet"
+    ResNet34UNet = "resnet34-unet"
+    ResNet50UNet = "resnet50-unet"
 
 class DatasetChoice(Enum):
     S2 = "s2" # Only S2 data
