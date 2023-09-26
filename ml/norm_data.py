@@ -29,9 +29,9 @@ class NormTransformer(RasterTransformer):
     """
     This transformer norms input data into the range 0 to 255.
     For each channel indivually:
-    - Every value below mean - 2*std is clipped to 0
-    - Every value above mean + 2*std is clipped to 1
-    - All values in between are mapped with the range 0 to 1
+    - Every value below mean - 2*std is clipped to 255
+    - Every value above mean + 2*std is clipped to 255
+    - All values in between are mapped with the range 0 to 255
     """
     def __init__(self, mean: np.array, std: np.array):
         # mean and std are statistical values per channel (!)
@@ -42,8 +42,8 @@ class NormTransformer(RasterTransformer):
                   channel_order: Optional[list] = None) -> np.ndarray:
         min_value_filtered_channels = self.min_value[channel_order]
         max_value_filtered_channels = self.max_value[channel_order]
-        chip = (chip - min_value_filtered_channels) / (max_value_filtered_channels - min_value_filtered_channels)
-        chip = np.clip(chip, 0, 1)
+        chip = (chip - min_value_filtered_channels) / (max_value_filtered_channels - min_value_filtered_channels) * 255.0
+        chip = np.clip(chip, 0, 255).astype(np.uint8)
         return chip
 
 norm_s2_transformer = NormTransformer(mean=SATMEA_S2_MEAN, std=SATMEA_S2_STD)

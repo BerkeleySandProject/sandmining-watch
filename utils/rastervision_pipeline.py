@@ -126,7 +126,7 @@ def scene_to_validation_ds(config, scene: Scene):
         padding=None,
         pad_direction='end',
         transform=None,
-        normalize=False,
+        normalize=True,
     )
 
 def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
@@ -134,7 +134,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
     n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2) * 2
     return SemanticSegmentationRandomWindowGeoDataset(
         scene,
-        out_size=None,
+        out_size=(config.tile_size, config.tile_size),
         # Setting size_lims=(size,size+1) seems weird, but it actually leads to all windows having the same size
         # see https://github.com/azavea/raster-vision/blob/1d23e466d5bbec28373eef5c58efebcb0c774cd1/rastervision_pytorch_learner/rastervision/pytorch_learner/dataset/dataset.py#L408
         size_lims=(config.tile_size, config.tile_size+1),
@@ -142,7 +142,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
         max_windows=n_windows,
         efficient_aoi_sampling=True,
         transform=config.augmentations,
-        normalize=False,
+        normalize=True,
     )
 
 def scene_to_prediction_ds(config, scene: Scene):
@@ -154,5 +154,5 @@ def scene_to_prediction_ds(config, scene: Scene):
         padding=config.tile_size,
         pad_direction='end',
         transform=None,
-        normalize=False,
+        normalize=True,
     )
