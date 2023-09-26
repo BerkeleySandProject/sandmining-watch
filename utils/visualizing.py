@@ -47,9 +47,9 @@ class Visualizer():
             p = patches.Polygon(w.to_points(), color='r', linewidth=1, fill=False)
             ax.add_patch(p)
         # draw second and second last window again in a different color
-        for w in [windows[1], windows[-2]]:
-            p = patches.Polygon(w.to_points(), color='b', linewidth=1, fill=False)
-            ax.add_patch(p)
+        # for w in [windows[1], windows[-2]]:
+        #     p = patches.Polygon(w.to_points(), color='b', linewidth=1, fill=False)
+        #     ax.add_patch(p)
         ax.autoscale()
         ax.set_title(title)
         plt.show()

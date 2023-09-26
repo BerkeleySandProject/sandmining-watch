@@ -1,4 +1,5 @@
 import numpy as np
+from math import ceil
 from rastervision.core.data import (
     ClassInferenceTransformer, GeoJSONVectorSource,
     RasterioSource, MultiRasterSource, RasterizedSource, Scene,
@@ -7,7 +8,7 @@ from rastervision.core.data import (
 from rastervision.core.data.raster_transformer.nan_transformer import NanTransformer
 
 from rastervision.core.data.raster_source import RasterSource
-from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset
+from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset
 
 
 from project_config import CLASS_NAME, CLASS_CONFIG
@@ -122,20 +123,26 @@ def scene_to_validation_ds(config, scene: Scene):
         scene,
         size=config.tile_size,
         stride=config.tile_size,
-        padding=0,
+        padding=None,
         pad_direction='end',
         transform=None,
+        normalize=False,
     )
 
-def scene_to_training_ds(config, scene: Scene):
-    # Has augementation and overlapping windows
-    return SemanticSegmentationSlidingWindowGeoDataset(
+def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
+    n_pixels_in_scene = scene.raster_source.shape[0] * scene.raster_source.shape[1]
+    n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2) * 2
+    return SemanticSegmentationRandomWindowGeoDataset(
         scene,
-        size=config.tile_size,
-        stride=int(config.tile_size / 2),
-        padding=0,
-        pad_direction='end',
+        out_size=None,
+        # Setting size_lims=(size,size+1) seems weird, but it actually leads to all windows having the same size
+        # see https://github.com/azavea/raster-vision/blob/1d23e466d5bbec28373eef5c58efebcb0c774cd1/rastervision_pytorch_learner/rastervision/pytorch_learner/dataset/dataset.py#L408
+        size_lims=(config.tile_size, config.tile_size+1),
+        padding=None,
+        max_windows=n_windows,
+        efficient_aoi_sampling=True,
         transform=config.augmentations,
+        normalize=False,
     )
 
 def scene_to_prediction_ds(config, scene: Scene):
@@ -147,4 +154,5 @@ def scene_to_prediction_ds(config, scene: Scene):
         padding=config.tile_size,
         pad_direction='end',
         transform=None,
+        normalize=False,
     )

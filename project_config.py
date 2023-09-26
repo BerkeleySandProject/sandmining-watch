@@ -17,10 +17,23 @@ training_locations = [
     "Mahananda_UttarDinajpur_88-25_26-46",
     "Teesta_Jalpaiguri_88-6_26-84",
     "Teesta_Jalpaiguri_88-64_26-85",
+    "Chambal_More_77-92_26-66",
+    "Ken_Banda_80-35_25-68",
+    "Kathajodi_Cuttack_85-85_20-44",
+    "Tawa_Hoshangabad_77-80_22-74",
+    "Sone_Patna_84-76_25-44",
+    "Banas_Banaskantha_71-93_23-96",
+    "Waiganga_Gondiya_80-16_21-62",
+    "Waiganga_Gondiya_80-11_21-59",
+    "Waiganga_Gondiya_80-03_21-55",
 ]
 validation_locations = [
     "Bhargavi_Khordha_85-88_20-26",
     "Mahanadi_Angul_84-52_20-71",
+    "Narmada_Sehore_77-32_22-56",
+    "Mahananda_Jalpaiguri_88-4_26-68",
+    "Sone_Rohtas_83-86_24-46",
+    "Sone_Rohtas_84-21_24-91",
 ]
 
 def is_training(observation_key:str):
