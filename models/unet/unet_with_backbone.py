@@ -58,6 +58,6 @@ class ResNetEncoderUNetDecoder(nn.Module):
         out = self.up3(out, features["x2"])
         out = self.up4(out, features["x1"])
         out = self.classifier(out)
-        out = F.interpolate(out, (torch.tensor(out.shape[2:]) * 2).tolist(), mode="bilinear", align_corners=False)
+        out = F.interpolate(out, x.shape[2:], mode="bilinear", align_corners=False)
         return out
     
