@@ -1,3 +1,4 @@
+import os
 import torch
 from torch import nn
 
@@ -23,7 +24,9 @@ class SatMaePretrained(nn.Module):
         self.n_patches_along_axis = INPUT_SIZE // PATCH_SIZE # In SatMAE notation: H/P or W/P (because H=W, input is quadratic)
 
     def load_encoder_weights(self, path_to_weights):
-        print(f"SatMaeSegmenterWithLinearDecoder: Loading encoder weights from {path_to_weights}")
+        if not os.path.isfile(path_to_weights):
+            raise ValueError(f"No checkpoint found at {path_to_weights}")
+        print(f"SatMae: Loading encoder weights from {path_to_weights}")
         checkpoint = torch.load(path_to_weights, map_location='cpu')
         checkpoint_model = checkpoint['model']
 
