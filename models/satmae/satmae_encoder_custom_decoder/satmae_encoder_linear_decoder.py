@@ -6,9 +6,9 @@ from ..pretrained_satmae_config import PATCH_SIZE, INPUT_SIZE
 
 
 class SatMaeSegmenterWithLinearDecoder(SatMaePretrained):
-    def __init__(self):
-        super().__init__()
-        self.decoder_liner = nn.Linear(
+    def __init__(self, vit_size):
+        super().__init__(vit_size)
+        self.decoder = nn.Linear(
             self.encoder_real_depth, 2,
         )
 
@@ -21,7 +21,7 @@ class SatMaeSegmenterWithLinearDecoder(SatMaePretrained):
         # g is the number of channel groups
         x = rearrange(x, 'N (g L) D -> N L (g D)', g=self.n_channel_groups)
 
-        logits = self.decoder_liner(x)
+        logits = self.decoder(x)
 
         # In the following, h = H/P and w = W/P
         # where H is the height in the input image and P is the height and widt of each patch

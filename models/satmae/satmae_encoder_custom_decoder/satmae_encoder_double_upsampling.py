@@ -33,8 +33,8 @@ class DecoderDoubleUpsampling(nn.Module):
 
 
 class SatMaeSegmenterWithDoubleUpsampling(SatMaePretrained):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, vit_size):
+        super().__init__(vit_size)
         self.decoder = DecoderDoubleUpsampling(
             d_encoder=self.encoder_real_depth,
             embedding_size=self.n_patches_along_axis # h = w of the encoded embedding that the decoder receives

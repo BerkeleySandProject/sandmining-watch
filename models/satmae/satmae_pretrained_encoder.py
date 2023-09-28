@@ -2,7 +2,7 @@ import os
 import torch
 from torch import nn
 
-from .models_vit_group_channels import vit_base_patch16
+from .models_vit_group_channels import vit_base_patch16, vit_large_patch16
 from .util.pos_embed import interpolate_pos_embed
 from .pretrained_satmae_config import CHANNEL_GROUPS, PATCH_SIZE, INPUT_SIZE
 
@@ -11,9 +11,13 @@ class SatMaePretrained(nn.Module):
     A SatMaePretrained holds the pretrained SatMAE spectral encoder in the 'base' size.
     We inherited from this class to construct SatMAE encoder + custom decoder models.
     """
-    def __init__(self):
+    def __init__(self, vit_size):
         super().__init__()
-        self.encoder = vit_base_patch16(
+        if vit_size == "base":
+            encoder_factory_fcn = vit_base_patch16
+        elif vit_size == "large":
+            encoder_factory_fcn = vit_large_patch16
+        self.encoder = encoder_factory_fcn(
             patch_size=PATCH_SIZE, img_size=INPUT_SIZE, in_chans=10,
             channel_groups=CHANNEL_GROUPS,
             num_classes=2, drop_path_rate=0.1, global_pool=False,

@@ -11,6 +11,7 @@ class ModelChoice(Enum):
     Segformer = "segformer"
     SatmaeBaseLinearDecoder = "satmae-base-linear-decoder"
     SatmaeBaseDoubleUpsampling = "satmae-base-double-upsampling"
+    SatmaeLargeDoubleUpsampling = "satmae-large-double-upsampling"
     UnetResBlocks = "unet-res-blocks"
     ResNet18UNet = "resnet18-unet"
     ResNet34UNet = "resnet34-unet"

@@ -34,3 +34,19 @@ satmae_ft_doubleupsampling_config = SupervisedFinetuningCofig(
     freeze_encoder_weights=True,
     encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-base-e199.pth"
 )
+
+satmae_large_ft_doubleupsampling_config = SupervisedFinetuningCofig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=96,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=256,
+    learning_rate=1e-3,
+    output_dir=expanduser("~/sandmining-watch/out/satmae-large-ft-doubleupsampling"),
+    datasets=DatasetChoice.S2,
+    augmentations=DEFAULT_AUGMENTATIONS,
+    mine_class_loss_weight=2.,
+    freeze_encoder_weights=True,
+    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth"
+)
