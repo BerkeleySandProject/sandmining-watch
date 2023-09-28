@@ -24,9 +24,15 @@ class SchedulerChoice(Enum):
     Cyclic = "cyclic"
 
 class DatasetChoice(Enum):
-    S2 = "s2" # Only S2 data
-    S1S2 = "s1s2"  # S1 and S2 data
+    # Which dataset(s) shall be uses
+    S2 = "s2" # Only S2 (L2A) data
+    S1S2 = "s1s2"  # S1 and S2 (L2A) data
+    S2_L1C = "s2-l1c"
 
+class NormalizationS2Choice(Enum):
+    # Why normalization shall be applied on the S2 images
+    ChannelWise = "channelwise" # For each channel, projects 4 standard deviations between [0,255] / [0,1]
+    DivideBy10000 = "divideby10000"  # Used by SSL4EO
 
 @dataclass
 class SupervisedTrainingConfig:
@@ -35,6 +41,7 @@ class SupervisedTrainingConfig:
     # scheduler: SchedulerChoice # wip, not yet implemented
     tile_size: int
     s2_channels: Optional[List[int]] # If none, RV will take all channels
+    s2_normalization: NormalizationS2Choice
     batch_size: int
     learning_rate: float
     output_dir: str

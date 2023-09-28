@@ -48,3 +48,13 @@ class NormTransformer(RasterTransformer):
 
 norm_s2_transformer = NormTransformer(mean=SATMEA_S2_MEAN, std=SATMEA_S2_STD)
 norm_s1_transformer = NormTransformer(mean=BSP_S1_MEAN, std=BSP_S1_STD)
+
+class DivideByConstantTransformer(RasterTransformer):
+    def __init__(self, constant):
+        self.constant = constant
+
+    def transform(self, chip: np.ndarray,
+                channel_order: Optional[list] = None) -> np.ndarray:
+        return chip / self.constant
+
+divide_by_10000_transformer = DivideByConstantTransformer(10000)

@@ -12,9 +12,9 @@ from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDat
 
 
 from project_config import CLASS_NAME, CLASS_CONFIG
-from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice
+from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice
 from utils.schemas import ObservationPointer
-from ml.norm_data import norm_s1_transformer, norm_s2_transformer
+from ml.norm_data import norm_s1_transformer, norm_s2_transformer, divide_by_10000_transformer
 
 
 def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
@@ -30,6 +30,13 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
         return create_scene_s2(
             config,
             s2_uri=observation.uri_to_s2,
+            label_uri=observation.uri_to_annotations,
+            scene_id=observation.name,
+        )
+    elif config.datasets == DatasetChoice.S2_L1C:
+        return create_scene_s2(
+            config,
+            s2_uri=observation.uri_to_s2_l1c,
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
         )
@@ -55,13 +62,20 @@ def create_scene_s2(config, s2_uri, label_uri, scene_id) -> Scene:
     return scene
 
 def create_s2_image_source(config, img_uri):
+    if config.s2_normalization == NormalizationS2Choice.ChannelWise:
+        normalization_transformer = norm_s2_transformer
+    elif config.s2_normalization == NormalizationS2Choice.DivideBy10000:
+        normalization_transformer = divide_by_10000_transformer
+    else:
+        raise ValueError("Unsupported value for config.s2_normalization")
+    
     return RasterioSource(
         img_uri,
         channel_order=config.s2_channels,
         allow_streaming=False,
         raster_transformers=[
             NanTransformer(),
-            norm_s2_transformer,
+            normalization_transformer,
         ]
     )
 

@@ -5,11 +5,12 @@ from os.path import expanduser
 
 satmae_ft_lineardecoder_config = SupervisedFinetuningCofig(
     model_type=ModelChoice.SatmaeBaseLinearDecoder,
-    optimizer=OptimizerChoice.SDG,
+    optimizer=OptimizerChoice.AdamW,
     tile_size=96,
     s2_channels=satmea_pretrained_encoder_bands_idx,
-    batch_size=64,
-    learning_rate=3e-2,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=256,
+    learning_rate=1e-3,
     output_dir=expanduser("~/sandmining-watch/out/satmae-ft"),
     datasets=DatasetChoice.S2,
     augmentations=DEFAULT_AUGMENTATIONS,
@@ -20,11 +21,12 @@ satmae_ft_lineardecoder_config = SupervisedFinetuningCofig(
 
 satmae_ft_doubleupsampling_config = SupervisedFinetuningCofig(
     model_type=ModelChoice.SatmaeBaseDoubleUpsampling,
-    optimizer=OptimizerChoice.SDG,
+    optimizer=OptimizerChoice.AdamW,
     tile_size=96,
     s2_channels=satmea_pretrained_encoder_bands_idx,
-    batch_size=64,
-    learning_rate=3e-2,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=256,
+    learning_rate=1e-3,
     output_dir=expanduser("~/sandmining-watch/out/satmae-ft-doubleupsampling"),
     datasets=DatasetChoice.S2,
     augmentations=DEFAULT_AUGMENTATIONS,
