@@ -50,7 +50,6 @@ resnet34_unet_config = SupervisedTrainingConfig(
     learning_rate=1e-3,
     output_dir=expanduser("~/sandmining-watch/out/resnet34_unet"),
     datasets=DatasetChoice.S1S2,
-    augmentations=DEFAULT_AUGMENTATIONS,
     mine_class_loss_weight=2.,
 )
 
@@ -64,6 +63,5 @@ resnet50_unet_config = SupervisedTrainingConfig(
     learning_rate=5e-4,
     output_dir=expanduser("~/sandmining-watch/out/resnet50_unet"),
     datasets=DatasetChoice.S1S2,
-    augmentations=DEFAULT_AUGMENTATIONS,
     mine_class_loss_weight=2.,
 )
