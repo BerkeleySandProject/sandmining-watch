@@ -1,8 +1,5 @@
-# --------------------------------------------------------
-# References:
-# MAE: https://github.com/facebookresearch/mae
-# timm: https://github.com/rwightman/pytorch-image-models/tree/master/timm
-# --------------------------------------------------------
+# copied and adapted from:
+# https://github.com/sustainlab-group/SatMAE/blob/main/models_vit_group_channels.py
 
 from functools import partial
 
@@ -24,7 +21,6 @@ class GroupChannelsVisionTransformer(timm.models.vision_transformer.VisionTransf
         self.use_encoder_only = use_encoder_only
         img_size = kwargs['img_size']
         patch_size = kwargs['patch_size']
-        in_c = kwargs['in_chans']
         embed_dim = kwargs['embed_dim']
 
         self.channel_groups = channel_groups
