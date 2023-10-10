@@ -1,8 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
-
-import albumentations as A
 
 
 class ModelChoice(Enum):
@@ -47,12 +45,18 @@ class SupervisedTrainingConfig:
     learning_rate: float
     output_dir: str
     datasets: DatasetChoice
-    augmentations: A.Compose
     mine_class_loss_weight: float
+
+
+class FinetuningStratagyChoice(Enum):
+    End2EndFinetuning = "end-2-end"  # Nothing is frozen
+    LinearProbing = "linear-probing" # Encoder weights are frozen
+    FreezeEmbed = "freeze-embed" # Only applicable for ViT! Patch embed layer is frozen.
+    LayerwiseLrDecay = "layerwise-lr-decay" # 
 
 @dataclass
 class SupervisedFinetuningCofig(SupervisedTrainingConfig):
-    freeze_encoder_weights: bool # (Technically, if this set to true, we are linear probing and not finetuning)
+    finetuning_strategy: FinetuningStratagyChoice
 
     # Sometimes, we will resume a finetuning job. In this case, we don't load the pretrained encoder weights,
     # but the checkpoint from finetuning. Therefore, encoder_weights_path is an optional parameter.

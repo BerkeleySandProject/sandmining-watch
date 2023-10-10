@@ -6,7 +6,6 @@ import time
 import datetime
 from tqdm.auto import tqdm
 import wandb
-import albumentations as A
 import torch
 from torch import nn, Tensor
 from torch.utils.data import Dataset
@@ -114,8 +113,6 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         for key, val in vars(self.experiment_config).items():
             if isinstance(val, Enum):
                 config_to_log[key] = val.value
-            elif isinstance(val, A.Compose):
-                continue
             elif val is None:
                 # W&B displays config weirdly when value is None. Therefore we store a string.
                 config_to_log[key] = "None"

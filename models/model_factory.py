@@ -1,6 +1,6 @@
 from enum import Enum
 
-from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningCofig, ModelChoice
+from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningCofig, ModelChoice, FinetuningStratagyChoice
 from typing import Union
 
 
@@ -48,7 +48,16 @@ def model_factory(
     if isinstance(config, SupervisedFinetuningCofig):
         if config.encoder_weights_path:
             model.load_encoder_weights(config.encoder_weights_path)
-        if config.freeze_encoder_weights:
+
+        if config.finetuning_strategy == FinetuningStratagyChoice.End2EndFinetuning:
+            pass
+        elif config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing:
             model.freeze_encoder_weights()
+        elif config.finetuning_strategy == FinetuningStratagyChoice.FreezeEmbed:
+            model.freeze_embed_weights()
+        elif config.finetuning_strategy == FinetuningStratagyChoice.LayerwiseLrDecay:
+            raise NotImplementedError("LayerwiseLrDecay is not yet implemented")
+        else:
+            raise ValueError("Unknown choise for finetuning strategy")
     
     return model

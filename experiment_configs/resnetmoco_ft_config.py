@@ -1,5 +1,4 @@
 from .schemas import *
-from ml.augmentations import DEFAULT_AUGMENTATIONS
 from os.path import expanduser
 
 resnet50_moco_ft_config = SupervisedFinetuningCofig(
@@ -12,9 +11,8 @@ resnet50_moco_ft_config = SupervisedFinetuningCofig(
     learning_rate=1e-3,
     output_dir=expanduser("~/sandmining-watch/out/resnet50-moco"),
     datasets=DatasetChoice.S2_L1C,
-    augmentations=DEFAULT_AUGMENTATIONS,
     mine_class_loss_weight=2.,
-    freeze_encoder_weights=True,
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
     encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn50_moco_0099.pth"
 )
 
@@ -28,8 +26,7 @@ resnet18_moco_ft_config = SupervisedFinetuningCofig(
     learning_rate=1e-3,
     output_dir=expanduser("~/sandmining-watch/out/resnet18-moco"),
     datasets=DatasetChoice.S2_L1C,
-    augmentations=DEFAULT_AUGMENTATIONS,
     mine_class_loss_weight=2.,
-    freeze_encoder_weights=True,
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
     encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth"
 )

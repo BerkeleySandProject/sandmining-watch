@@ -15,6 +15,7 @@ from project_config import CLASS_NAME, CLASS_CONFIG
 from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice
 from utils.schemas import ObservationPointer
 from ml.norm_data import norm_s1_transformer, norm_s2_transformer, divide_by_10000_transformer
+from ml.augmentations import DEFAULT_AUGMENTATIONS
 
 
 def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
@@ -155,7 +156,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
         padding=None,
         max_windows=n_windows,
         efficient_aoi_sampling=True,
-        transform=config.augmentations,
+        transform=DEFAULT_AUGMENTATIONS,
         normalize=True,
     )
 

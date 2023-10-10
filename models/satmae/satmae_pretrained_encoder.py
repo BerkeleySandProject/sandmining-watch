@@ -18,7 +18,7 @@ class SatMaePretrained(nn.Module):
         elif vit_size == "large":
             encoder_factory_fcn = vit_large_patch16
         self.encoder = encoder_factory_fcn(
-            patch_size=PATCH_SIZE, img_size=INPUT_SIZE, in_chans=10,
+            patch_size=PATCH_SIZE, img_size=INPUT_SIZE,
             channel_groups=CHANNEL_GROUPS,
             num_classes=2, drop_path_rate=0.1, global_pool=False,
             use_encoder_only=True,
@@ -46,4 +46,9 @@ class SatMaePretrained(nn.Module):
     def freeze_encoder_weights(self):
         print("SatMaePretrained: Freezing encoder weights")
         for param in self.encoder.parameters():
+            param.requires_grad = False
+
+    def freeze_embed_weights(self):
+        print("SatMaePretrained: Freezing weights of embedding layer")
+        for param in self.encoder.patch_embed.parameters():
             param.requires_grad = False
