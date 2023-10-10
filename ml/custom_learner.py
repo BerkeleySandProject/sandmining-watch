@@ -1,6 +1,7 @@
 from os.path import join
 from enum import Enum
 from typing import Optional, Dict
+import numpy as np
 import time
 import datetime
 from tqdm.auto import tqdm
@@ -11,14 +12,19 @@ from torch import nn, Tensor
 from torch.utils.data import Dataset
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
+from rastervision.core.data import SemanticSegmentationLabels, SemanticSegmentationSmoothLabels
 from rastervision.pytorch_learner import (
-    SemanticSegmentationGeoDataConfig, SolverConfig, SemanticSegmentationLearnerConfig
+    SemanticSegmentationGeoDataConfig, SolverConfig, SemanticSegmentationLearnerConfig,
+    SemanticSegmentationSlidingWindowGeoDataset
 )
 from rastervision.pytorch_learner import SemanticSegmentationLearner
 
 from experiment_configs.schemas import SupervisedTrainingConfig
 from ml.model_stats import count_number_of_weights
-from project_config import CLASS_CONFIG, WANDB_PROJECT_NAME  
+from utils.visualizing import Visualizer
+from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
+from utils.metrics import compute_metrics
+from project_config import CLASS_CONFIG, CLASS_NAME, WANDB_PROJECT_NAME
 
 MetricDict = Dict[str, float]
 
@@ -88,8 +94,8 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         # Default RV saves the model weights to last-model.pth.
         # In the next epoch, RV will overwrite this file.
         # But we want to keep the weights after every epoch
-        checkpoint_path = join(self.output_dir_local, f"after-epoch-{curr_epoch}.pth")
-        torch.save(self.model.state_dict(), checkpoint_path)
+        #checkpoint_path = join(self.output_dir_local, f"after-epoch-{curr_epoch}.pth")
+        #torch.save(self.model.state_dict(), checkpoint_path)
 
     def initialize_wandb_run(self):
         wandb.init(
@@ -126,6 +132,103 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
             }
         )
         return config_to_log
+
+    def predict_site(
+        self,
+        ds: SemanticSegmentationSlidingWindowGeoDataset,
+        crop_sz = None
+    ) -> SemanticSegmentationSmoothLabels:
+        predictions = self.predict_dataset(
+            ds,
+            numpy_out=True,
+            progress_bar=False,
+        )
+        return SemanticSegmentationLabels.from_predictions(
+            ds.windows,
+            predictions,
+            smooth=True,
+            extent=ds.scene.extent,
+            num_classes=len(CLASS_CONFIG),
+            crop_sz=crop_sz,
+        )
+    
+    def predict_mine_probability_for_site(
+        self,
+        ds: SemanticSegmentationSlidingWindowGeoDataset,
+        crop_sz = None
+    ):
+        predictions = self.predict_site(ds, crop_sz)
+        scores = predictions.get_score_arr(predictions.extent)
+        predicted_mine_probability = scores[CLASS_CONFIG.get_class_id(CLASS_NAME)]
+        return predicted_mine_probability
+
+    def evaluate_and_log_to_wandb(self, datasets):
+        """
+        Runs inference on datasets.
+        Logs to W&B:
+        - Metrics per observation (unless ground truth is all negative)
+        - Metric over all observations
+        - RGB image with ground truth and predicted masks per observation (unless ground truth is all negative)
+        - Predicted probabilites per observation
+        """
+        assert wandb.run is not None
+        visualizer = Visualizer(self.experiment_config.s2_channels)
+
+        segmentation_result_images = []
+        predicted_probabilities_images = []
+        segmentation_metrics = {}
+        predictions_raveled = []
+        ground_truths_raveled = []
+
+        for ds in datasets:
+            print(ds.scene.id)
+            rgb_img = visualizer.rgb_from_bandstack(
+                ds.scene.raster_source.get_image_array()
+            )
+            predicted_probabilities = self.predict_mine_probability_for_site(ds, crop_sz=0)
+            predicted_mask = predicted_probabilities > 0.5
+            ground_truth_mask = ds.scene.label_source.get_label_arr()
+
+            predictions_raveled.append(predicted_mask.ravel())
+            ground_truths_raveled.append(ground_truth_mask.ravel())
+            
+            predicted_probabilities_images.append(
+                create_predicted_probabilities_image(predicted_probabilities, ds.scene.id)
+            )
+            segmantation_result_image = create_semantic_segmentation_image(
+                rgb_img, predicted_mask, ground_truth_mask, ds.scene.id
+            )
+
+            ground_truth_is_all_negative = np.all(ground_truth_mask == 0)
+            if ground_truth_is_all_negative:
+                # If the the observation does not have a labelled mine, it makes no sense to compute our metrics,
+                # because we will have no true positives.
+                continue
+
+            # Metrics per observation
+            precision, recall, f1_score = compute_metrics(ground_truth_mask, predicted_mask)
+            segmentation_metrics.update({
+                f"eval/{ds.scene.id}/precision": precision,
+                f"eval/{ds.scene.id}/recall": recall,
+                f"eval/{ds.scene.id}/f1_score": f1_score,
+            })
+            segmentation_result_images.append(segmantation_result_image)
+
+        # Metrics over all observations
+        all_predictions_concatenated  = np.concatenate(predictions_raveled)
+        all_ground_truths_concatenated  = np.concatenate(ground_truths_raveled)
+        total_precision, total_recall, total_f1_score = compute_metrics(all_ground_truths_concatenated, all_predictions_concatenated)
+        wand_log_dict = {
+            **segmentation_metrics,
+            'eval/total/precision': total_precision,
+            'eval/total/recall': total_recall,
+            'eval/total/f1_score': total_f1_score,
+            'Segmenation masks': segmentation_result_images,
+            'Predicted probabilites': predicted_probabilities_images,
+        }
+        print("Logging evaluations data to W&B")
+        wandb.log(wand_log_dict)
+
 
 def metrics_to_log_wand(metrics):
     metrics_to_log = {}

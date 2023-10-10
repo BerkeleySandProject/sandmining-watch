@@ -25,3 +25,6 @@ def create_semantic_segmentation_image(
         caption=image_title,
     )
     return wand_image_with_masks
+
+def create_predicted_probabilities_image(image, image_title):    
+    return wandb.Image(image, caption=image_title)

@@ -137,7 +137,7 @@ def scene_to_validation_ds(config, scene: Scene):
         scene,
         size=config.tile_size,
         stride=config.tile_size,
-        padding=None,
+        padding=config.tile_size,
         pad_direction='end',
         transform=None,
         normalize=True,
@@ -159,14 +159,3 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
         normalize=True,
     )
 
-def scene_to_prediction_ds(config, scene: Scene):
-    # No augmentation and overlapping windows
-    return SemanticSegmentationSlidingWindowGeoDataset(
-        scene,
-        size=config.tile_size,
-        stride=config.tile_size,
-        padding=config.tile_size,
-        pad_direction='end',
-        transform=None,
-        normalize=True,
-    )
