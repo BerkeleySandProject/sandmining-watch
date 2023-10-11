@@ -2,12 +2,12 @@ import torch.nn as nn
 from einops import rearrange
 
 from ..satmae_pretrained_encoder import SatMaePretrained
-from ..pretrained_satmae_config import PATCH_SIZE, INPUT_SIZE
 
 
 class SatMaeSegmenterWithLinearDecoder(SatMaePretrained):
-    def __init__(self, vit_size):
-        super().__init__(vit_size)
+    def __init__(self, vit_size, image_size):
+        super().__init__(vit_size, image_size)
+        self.image_size = image_size
         self.decoder = nn.Linear(
             self.encoder_real_depth, 2,
         )
@@ -28,7 +28,7 @@ class SatMaeSegmenterWithLinearDecoder(SatMaePretrained):
         logits = rearrange(logits, "N (h w) gD -> N gD h w", h=self.n_patches_along_axis)
 
         upsampled_logits = nn.functional.interpolate(
-            logits, size=(INPUT_SIZE, INPUT_SIZE), mode="bilinear", align_corners=False
+            logits, size=(self.image_size, self.image_size), mode="bilinear", align_corners=False
         )
         return upsampled_logits
     

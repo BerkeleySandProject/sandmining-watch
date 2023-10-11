@@ -16,7 +16,7 @@ class SegformerForSemanticSegmentationForRV(SegformerForSemanticSegmentation):
     We do this because Rastervision's SemanticSegmentationLearner expects the output in this formar.
     """
     def __init__(self, config, img_size):
-        self.img_size = img_size # Tuple (width x height)
+        self.img_size = img_size
         super().__init__(config)
     
     def forward(self, pixel_values: torch.FloatTensor):
@@ -29,6 +29,6 @@ class SegformerForSemanticSegmentationForRV(SegformerForSemanticSegmentation):
         encoder_hidden_states = outputs.hidden_states
         logits = self.decode_head(encoder_hidden_states)
         upsampled_logits = nn.functional.interpolate(
-            logits, size=self.img_size, mode="bilinear", align_corners=False
+            logits, size=(self.img_size, self.img_size), mode="bilinear", align_corners=False
         )
         return upsampled_logits
