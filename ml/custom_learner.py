@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 import wandb
 import torch
 from torch import nn, Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from rastervision.core.data import SemanticSegmentationLabels, SemanticSegmentationSmoothLabels
@@ -48,8 +48,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         with tqdm(self.train_dl, desc='Training') as bar:
             for batch_ind, (x, y) in enumerate(bar):
                 x = self.to_device(x, self.device)
-                y = y.to(torch.int64)
-                y = self.to_device(y, self.device)
+                y = self.to_device(y.float(), self.device)
                 batch = (x, y)
                 optimizer.zero_grad()
                 output = self.train_step(batch, batch_ind)
@@ -70,7 +69,34 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         train_time = datetime.timedelta(seconds=end - start)
         metrics['train_time'] = str(train_time)
         return metrics
+    
+    def validate_epoch(self, dl: DataLoader) -> MetricDict:
+        start = time.time()
+        self.model.eval()
+        num_samples = 0
+        outputs = []
+        with torch.inference_mode():
+            with tqdm(dl, desc='Validating') as bar:
+                for batch_ind, (x, y) in enumerate(bar):
+                    x = self.to_device(x, self.device)
+                    y = self.to_device(y.float(), self.device)
+                    batch = (x, y)
+                    output = self.validate_step(batch, batch_ind)
+                    outputs.append(output)
+                    num_samples += x.shape[0]
+        end = time.time()
+        validate_time = datetime.timedelta(seconds=end - start)
 
+        metrics = self.validate_end(outputs, num_samples)
+        metrics['valid_time'] = str(validate_time)
+        return metrics
+
+    def post_forward(self, x):
+        return super().post_forward(x).squeeze()
+
+
+    def prob_to_pred(self, x, threshold=.5):
+        return (x > threshold).int()
 
     def on_epoch_end(self, curr_epoch, metrics):
         # This funtion extends the regular on_epoch_end() behaviour.
@@ -261,6 +287,7 @@ def learner_factory(
     
     learner = CustomSemanticSegmentationLearner(
         optimizer=optimizer,
+        loss=nn.BCEWithLogitsLoss(),
         experiment_config=config,
         cfg=learner_cfg,
         output_dir=config.output_dir,
