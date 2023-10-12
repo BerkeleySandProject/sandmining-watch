@@ -65,14 +65,6 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
                     print("WARNING not step scheduler")
                 num_samples += x.shape[0]
 
-                # if wandb.run is not None:
-                #     last_lr = step_scheduler.get_last_lr()
-                #     if isinstance(last_lr, list) and len(last_lr) == 1:
-                #         print("last_lr[0]", last_lr[0])
-                #         wandb.log({'lr': last_lr[0]})
-                #     else:
-                #         print("Unexpected scheduler.get_last_lr()")
-
         metrics = self.train_end(outputs, num_samples)
         end = time.time()
         train_time = datetime.timedelta(seconds=end - start)
@@ -86,7 +78,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
 
         # Log metrics to Weights&Biases
         if wandb.run is not None:
-            metrics_to_log = metrics_to_log_wand(metrics)
+            metrics_to_log = self.metrics_to_log_wand(metrics)
             # print('logging', metrics_to_log, curr_epoch)
             wandb.log(metrics_to_log)#, step=curr_epoch)
 
@@ -226,18 +218,26 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         print("Logging evaluations data to W&B")
         wandb.log(wand_log_dict)
 
+    def metrics_to_log_wand(self, metrics):
+        metrics_to_log = {
+            'lr_at_epoch_end': get_schedulers_last_lr(self.step_scheduler)
+        }
+        for key, val in metrics.items():
+            if key.startswith('sandmine') or key.endswith('loss'):
+                metrics_to_log[key] = val
+            elif key.endswith('time'):
+                metrics_to_log[f"{key}_per_epoch"] = val
+            else:
+                continue
+        return metrics_to_log
 
-def metrics_to_log_wand(metrics):
-    metrics_to_log = {}
-    for key, val in metrics.items():
-        if key.startswith('sandmine') or key.endswith('loss'):
-            metrics_to_log[key] = val
-        elif key.endswith('time'):
-            metrics_to_log[f"{key}_per_epoch"] = val
-        else:
-            continue
-    return metrics_to_log
 
+def get_schedulers_last_lr(scheduler: _LRScheduler):
+    last_lr = scheduler.get_last_lr()
+    if isinstance(last_lr, list) and len(last_lr) == 1:
+        return last_lr[0]
+    else:
+        raise ValueError("Unexpected scheduler.get_last_lr()")
 
 
 def learner_factory(
