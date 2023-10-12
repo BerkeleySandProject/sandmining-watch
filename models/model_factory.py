@@ -7,9 +7,9 @@ from typing import Union
 def model_factory(
         config: Union[SupervisedTrainingConfig, SupervisedFinetuningCofig] ,
         n_channels,
-        n_classes = 2,
         **kwargs
     ):
+    n_classes = 1
     if config.model_type == ModelChoice.UnetSmall:
         from models.unet.unet_small import UNetSmall
         model = UNetSmall(n_channels, n_classes)

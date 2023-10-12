@@ -48,6 +48,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         with tqdm(self.train_dl, desc='Training') as bar:
             for batch_ind, (x, y) in enumerate(bar):
                 x = self.to_device(x, self.device)
+                    # y must be a float to work with PyTorch's BCEWithLogitsLoss
                 y = self.to_device(y.float(), self.device)
                 batch = (x, y)
                 optimizer.zero_grad()
@@ -79,6 +80,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
             with tqdm(dl, desc='Validating') as bar:
                 for batch_ind, (x, y) in enumerate(bar):
                     x = self.to_device(x, self.device)
+                    # y must be a float to work with PyTorch's BCEWithLogitsLoss
                     y = self.to_device(y.float(), self.device)
                     batch = (x, y)
                     output = self.validate_step(batch, batch_ind)
@@ -92,6 +94,10 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         return metrics
 
     def post_forward(self, x):
+        # Squeeze to remove the n_classes dimension (since it is size 1)
+        # From batch_size x n_classes x width x height
+        # To batch_size x width x height
+        # Do this to work with PyTorch's BCEWithLogitsLoss
         return super().post_forward(x).squeeze()
 
 
