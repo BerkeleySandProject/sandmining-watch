@@ -146,7 +146,7 @@ def scene_to_validation_ds(config, scene: Scene):
 
 def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
     n_pixels_in_scene = scene.raster_source.shape[0] * scene.raster_source.shape[1]
-    n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2) * 2
+    n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
     return SemanticSegmentationRandomWindowGeoDataset(
         scene,
         out_size=(config.tile_size, config.tile_size),
