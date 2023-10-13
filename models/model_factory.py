@@ -23,13 +23,13 @@ def model_factory(
         model = SegformerForSemanticSegmentationForRV(segformer_config, img_size=config.tile_size)
     elif config.model_type == ModelChoice.SatmaeBaseLinearDecoder:
         from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_linear_decoder import SatMaeSegmenterWithLinearDecoder
-        model = SatMaeSegmenterWithLinearDecoder("base", image_size=config.tile_size)
+        model = SatMaeSegmenterWithLinearDecoder("base", image_size=config.tile_size, num_classes=n_classes)
     elif config.model_type == ModelChoice.SatmaeBaseDoubleUpsampling:
         from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_double_upsampling import SatMaeSegmenterWithDoubleUpsampling
-        model = SatMaeSegmenterWithDoubleUpsampling("base", image_size=config.tile_size)
+        model = SatMaeSegmenterWithDoubleUpsampling("base", image_size=config.tile_size, num_classes=n_classes)
     elif config.model_type == ModelChoice.SatmaeLargeDoubleUpsampling:
         from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_double_upsampling import SatMaeSegmenterWithDoubleUpsampling
-        model = SatMaeSegmenterWithDoubleUpsampling("large", image_size=config.tile_size)
+        model = SatMaeSegmenterWithDoubleUpsampling("large", image_size=config.tile_size, num_classes=n_classes)
     elif config.model_type == ModelChoice.UnetResBlocks:
         from models.unet.unet_resblocks import UNetResBlocks
         model = UNetResBlocks(n_channels, n_classes)

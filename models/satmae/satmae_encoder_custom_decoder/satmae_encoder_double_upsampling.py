@@ -10,11 +10,11 @@ class DecoderDoubleUpsampling(nn.Module):
     """
     Two 1x1 convolutions. Each convolution is followed by a upsampling through interpolation.
     """
-    def __init__(self, d_encoder, embedding_size, image_size, hidden_layer_size=256, n_cls=2):
+    def __init__(self, d_encoder, embedding_size, image_size, num_classes, hidden_layer_size=256):
         super().__init__()
         self.image_size = image_size
         self.conv_0 = nn.Conv2d(d_encoder, hidden_layer_size, 1, 1)
-        self.conv_1 = nn.Conv2d(hidden_layer_size, n_cls, 1, 1)
+        self.conv_1 = nn.Conv2d(hidden_layer_size, num_classes, 1, 1)
         self.norm = nn.LayerNorm((hidden_layer_size, embedding_size, embedding_size))
 
     def forward(self, x):
@@ -32,12 +32,13 @@ class DecoderDoubleUpsampling(nn.Module):
 
 
 class SatMaeSegmenterWithDoubleUpsampling(SatMaePretrained):
-    def __init__(self, vit_size, image_size):
+    def __init__(self, vit_size, image_size, num_classes):
         super().__init__(vit_size, image_size)
         self.decoder = DecoderDoubleUpsampling(
             d_encoder=self.encoder_real_depth,
             embedding_size=self.n_patches_along_axis, # h = w of the encoded embedding that the decoder receives
             image_size=image_size,
+            num_classes=num_classes,
         )
 
     def forward(self, im):

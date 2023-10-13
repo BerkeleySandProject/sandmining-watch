@@ -5,11 +5,11 @@ from ..satmae_pretrained_encoder import SatMaePretrained
 
 
 class SatMaeSegmenterWithLinearDecoder(SatMaePretrained):
-    def __init__(self, vit_size, image_size):
+    def __init__(self, vit_size, image_size, num_classes):
         super().__init__(vit_size, image_size)
         self.image_size = image_size
         self.decoder = nn.Linear(
-            self.encoder_real_depth, 2,
+            self.encoder_real_depth, num_classes,
         )
 
     def forward(self, x):

@@ -1,6 +1,6 @@
 from os.path import join
 from enum import Enum
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 import numpy as np
 import time
 import datetime
@@ -17,6 +17,7 @@ from rastervision.pytorch_learner import (
     SemanticSegmentationSlidingWindowGeoDataset
 )
 from rastervision.pytorch_learner import SemanticSegmentationLearner
+from rastervision.pytorch_learner.utils import compute_conf_mat
 
 from experiment_configs.schemas import SupervisedTrainingConfig
 from ml.model_stats import count_number_of_weights
@@ -70,6 +71,19 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         metrics['train_time'] = datetime.timedelta(seconds=end - start)
         return metrics
     
+    def validate_step(self, batch, batch_ind):
+        x, y = batch
+        out = self.post_forward(self.model(x))
+        val_loss = self.loss(out, y)
+        out = torch.sigmoid(out)
+
+        num_labels = len(self.cfg.data.class_names)
+        y = y.view(-1)
+        out = self.prob_to_pred(out).view(-1)
+        conf_mat = compute_conf_mat(out, y, num_labels)
+
+        return {'val_loss': val_loss, 'conf_mat': conf_mat}
+    
     def validate_epoch(self, dl: DataLoader) -> MetricDict:
         start = time.time()
         self.model.eval()
@@ -97,11 +111,28 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         # Do this to work with PyTorch's BCEWithLogitsLoss
         return super().post_forward(x).squeeze()
 
+    def predict(self,
+                x: torch.Tensor,
+                raw_out: bool = False,
+                out_shape: Optional[Tuple[int, int]] = None) -> torch.Tensor:
+        if out_shape:
+            raise ValueError("no support for out_shape")
 
-    def prob_to_pred(self, x, threshold=0.0):
-        # Our training runs with binary cross entropy (BCEWithLogitsLoss), which works with sigmoid activation function.
-        # During inference, we don't apply sigmoid yet. This threshold is applied on the output which precedes sigmoid.
-        # Because sigmoid(0)=0.5, a threshold of 0.0 is the natural default.
+        x = self.to_batch(x).float()
+        x = self.to_device(x, self.device)
+
+        with torch.inference_mode():
+            out = self.model(x)
+            out = self.post_forward(out)
+            out = torch.sigmoid(out)
+
+        if not raw_out:
+            out = self.prob_to_pred(out)
+        out = self.to_device(out, 'cpu')
+
+        return out
+
+    def prob_to_pred(self, x, threshold=0.5):
         return (x > threshold).int()
 
     def on_epoch_end(self, curr_epoch, metrics):
@@ -169,7 +200,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
             predictions,
             smooth=True,
             extent=ds.scene.extent,
-            num_classes=len(CLASS_CONFIG),
+            num_classes=1,
             crop_sz=crop_sz,
         )
     
@@ -180,8 +211,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
     ):
         predictions = self.predict_site(ds, crop_sz)
         scores = predictions.get_score_arr(predictions.extent)
-        predicted_mine_probability = scores[CLASS_CONFIG.get_class_id(CLASS_NAME)]
-        return predicted_mine_probability
+        return scores[0]
 
     def evaluate_and_log_to_wandb(self, datasets):
         """
