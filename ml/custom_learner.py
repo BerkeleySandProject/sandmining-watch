@@ -67,8 +67,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
 
         metrics = self.train_end(outputs, num_samples)
         end = time.time()
-        train_time = datetime.timedelta(seconds=end - start)
-        metrics['train_time'] = str(train_time)
+        metrics['train_time'] = datetime.timedelta(seconds=end - start)
         return metrics
     
     def validate_epoch(self, dl: DataLoader) -> MetricDict:
@@ -86,11 +85,9 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
                     output = self.validate_step(batch, batch_ind)
                     outputs.append(output)
                     num_samples += x.shape[0]
-        end = time.time()
-        validate_time = datetime.timedelta(seconds=end - start)
-
         metrics = self.validate_end(outputs, num_samples)
-        metrics['valid_time'] = str(validate_time)
+        end = time.time()
+        metrics['valid_time'] = datetime.timedelta(seconds=end - start)
         return metrics
 
     def post_forward(self, x):
@@ -257,8 +254,8 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         for key, val in metrics.items():
             if key.startswith('sandmine') or key.endswith('loss'):
                 metrics_to_log[key] = val
-            elif key.endswith('time'):
-                metrics_to_log[f"{key}_per_epoch"] = val
+            elif isinstance(val, datetime.timedelta):
+                metrics_to_log[f"{key}_seconds"] = val.total_seconds()
             else:
                 continue
         return metrics_to_log
