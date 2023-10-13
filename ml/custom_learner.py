@@ -98,7 +98,10 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         return super().post_forward(x).squeeze()
 
 
-    def prob_to_pred(self, x, threshold=.5):
+    def prob_to_pred(self, x, threshold=0.0):
+        # Our training runs with binary cross entropy (BCEWithLogitsLoss), which works with sigmoid activation function.
+        # During inference, we don't apply sigmoid yet. This threshold is applied on the output which precedes sigmoid.
+        # Because sigmoid(0)=0.5, a threshold of 0.0 is the natural default.
         return (x > threshold).int()
 
     def on_epoch_end(self, curr_epoch, metrics):
@@ -283,14 +286,19 @@ def learner_factory(
         num_workers=0,
     )
     solver_cfg = SolverConfig(
+        lr=config.learning_rate,
         batch_sz=config.batch_size,
         class_loss_weights=[1., config.mine_class_loss_weight]
     )
     learner_cfg = SemanticSegmentationLearnerConfig(data=data_cfg, solver=solver_cfg)
+
+    loss_fcn = nn.BCEWithLogitsLoss(
+        pos_weight=torch.as_tensor(config.mine_class_loss_weight)
+    )
     
     learner = CustomSemanticSegmentationLearner(
         optimizer=optimizer,
-        loss=nn.BCEWithLogitsLoss(),
+        loss=loss_fcn,
         experiment_config=config,
         cfg=learner_cfg,
         output_dir=config.output_dir,
