@@ -13,7 +13,8 @@ resnet50_moco_ft_config = SupervisedFinetuningCofig(
     datasets=DatasetChoice.S2_L1C,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn50_moco_0099.pth"
+    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn50_moco_0099.pth",
+    loss_fn="DICE",
 )
 
 resnet18_moco_ft_config = SupervisedFinetuningCofig(
@@ -28,5 +29,6 @@ resnet18_moco_ft_config = SupervisedFinetuningCofig(
     datasets=DatasetChoice.S2_L1C,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth"
+    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth",
+    loss_fn="DICE",
 )

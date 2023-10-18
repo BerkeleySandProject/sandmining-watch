@@ -41,6 +41,7 @@ class SupervisedTrainingConfig:
     tile_size: int
     s2_channels: Optional[List[int]] # If none, RV will take all channels
     s2_normalization: NormalizationS2Choice
+    loss_fn: str
     batch_size: int
     learning_rate: float
     output_dir: str

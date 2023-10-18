@@ -17,7 +17,7 @@ from rastervision.pytorch_learner import (
     SemanticSegmentationSlidingWindowGeoDataset
 )
 from rastervision.pytorch_learner import SemanticSegmentationLearner
-from rastervision.pytorch_learner.utils import compute_conf_mat
+from rastervision.pytorch_learner.utils import compute_conf_mat, compute_conf_mat_metrics
 
 from experiment_configs.schemas import SupervisedTrainingConfig
 from ml.model_stats import count_number_of_weights
@@ -33,9 +33,28 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
     Rastervisions SemanticSegmentationLearner class provides a lot the functionalities we need.
     In some cases, we want to customize SemanticSegmentationLearner to our needs, we do this here.
     """
-    def __init__(self, experiment_config, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, 
+                 experiment_config, 
+                 other_loss,
+                 backprop_loss_name,
+                 other_loss_name, 
+                 **kwargs):
         self.experiment_config = experiment_config
+        self.other_loss = other_loss
+        self.backprop_loss_str = backprop_loss_name
+        self.other_loss_str = other_loss_name
+        super().__init__(**kwargs)
+
+    def build_metric_names(self):
+        metrics = super().build_metric_names()
+        metrics.remove("train_loss")
+        metrics.remove("val_loss")
+        metrics.append("train_" + self.backprop_loss_str + "_loss")
+        metrics.append("train_" + self.other_loss_str + "_loss")
+        metrics.append("val_" + self.backprop_loss_str + "_loss")
+        metrics.append("val_" + self.other_loss_str + "_loss")
+        return metrics
+
 
     def train_epoch(
             self,
@@ -54,7 +73,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
                 batch = (x, y)
                 optimizer.zero_grad()
                 output = self.train_step(batch, batch_ind)
-                output['train_loss'].backward()
+                output["train_" + self.backprop_loss_str + "_loss"].backward()
                 optimizer.step()
                 # detach tensors in the output, if any, to avoid memory leaks
                 for k, v in output.items():
@@ -71,10 +90,17 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         metrics['train_time'] = datetime.timedelta(seconds=end - start)
         return metrics
     
+    def train_step(self, batch, batch_ind):
+        x, y = batch
+        out = self.post_forward(self.model(x))
+        return {"train_" + self.backprop_loss_str + "_loss": self.loss(out, y), 
+                "train_" + self.other_loss_str + "_loss": self.other_loss(out, y)}
+    
     def validate_step(self, batch, batch_ind):
         x, y = batch
         out = self.post_forward(self.model(x))
         val_loss = self.loss(out, y)
+        other_val_loss = self.other_loss(out, y)
         out = torch.sigmoid(out)
 
         num_labels = len(self.cfg.data.class_names)
@@ -82,7 +108,9 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         out = self.prob_to_pred(out).view(-1)
         conf_mat = compute_conf_mat(out, y, num_labels)
 
-        return {'val_loss': val_loss, 'conf_mat': conf_mat}
+        return {"val_" + self.backprop_loss_str + "_loss": val_loss,
+                "val_" + self.other_loss_str + "_loss": other_val_loss,
+                 'conf_mat': conf_mat}
     
     def validate_epoch(self, dl: DataLoader) -> MetricDict:
         start = time.time()
@@ -103,6 +131,22 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         end = time.time()
         metrics['valid_time'] = datetime.timedelta(seconds=end - start)
         return metrics
+    
+    def validate_end(self, outputs, num_samples):
+        conf_mat = sum([o['conf_mat'] for o in outputs])
+        val_loss = torch.stack([o["val_" + self.backprop_loss_str + "_loss"]
+                                for o in outputs]).sum() / num_samples
+        other_val_loss = torch.stack([o["val_" + self.other_loss_str + "_loss"]
+                                for o in outputs]).sum() / num_samples
+        conf_mat_metrics = compute_conf_mat_metrics(conf_mat,
+                                                    self.cfg.data.class_names)
+
+        metrics = {"val_" + self.backprop_loss_str + "_loss": val_loss.item(),
+                   "val_" + self.other_loss_str + "_loss": other_val_loss.item()}
+        metrics.update(conf_mat_metrics)
+
+        return metrics
+
 
     def post_forward(self, x):
         # Squeeze to remove the n_classes dimension (since it is size 1)
@@ -156,8 +200,10 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
             project=WANDB_PROJECT_NAME,
             config=self.get_config_dict_for_wandb_log(),
         )
-        wandb.define_metric("val_loss", summary="min")
-        wandb.define_metric("train_loss", summary="min")
+        wandb.define_metric("val_" + self.backprop_loss_str + "_loss", summary="min")
+        wandb.define_metric("val_" + self.other_loss + "_loss", summary="min")
+        wandb.define_metric("train_" + self.backprop_loss_str + "_loss", summary="min")
+        wandb.define_metric("train_" + self.other_loss_str + "_loss", summary="min")
         wandb.define_metric("sandmine_f1", summary="max")
         wandb.define_metric("sandmine_precision", summary="max")
         wandb.define_metric("sandmine_recall", summary="max")
@@ -302,6 +348,41 @@ def get_schedulers_last_lr(scheduler: _LRScheduler):
         raise ValueError("Unexpected scheduler.get_last_lr()")
 
 
+# https://stackoverflow.com/questions/67230305/i-want-to-confirm-which-of-these-methods-to-calculate-dice-loss-is-correct
+class DiceLoss(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def forward(self, inputs, target):
+        inputs = torch.sigmoid(inputs)
+        num = target.shape[0]
+        inputs = inputs.reshape(num, -1)
+        target = target.reshape(num, -1)
+
+        intersection = (inputs * target).sum(1)
+        union = inputs.sum(1) + target.sum(1)
+        dice = (2. * intersection) / (union + 1e-8)
+        dice = dice.sum()/num
+        return 1 - dice
+    
+# https://www.kaggle.com/code/bigironsphere/loss-function-library-keras-pytorch
+class DiceLoss2(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super().__init__()
+
+    def forward(self, inputs, targets, smooth=1e-8):
+        
+        #comment out if your model contains a sigmoid or equivalent activation layer
+        inputs = torch.sigmoid(inputs)       
+        
+        #flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+        
+        intersection = (inputs * targets).sum()                            
+        dice = (2.*intersection)/(inputs.sum() + targets.sum() + smooth)
+        return 1 - dice
+
 def learner_factory(
         config: SupervisedTrainingConfig,
         model: nn.Module,
@@ -322,13 +403,23 @@ def learner_factory(
     )
     learner_cfg = SemanticSegmentationLearnerConfig(data=data_cfg, solver=solver_cfg)
 
-    loss_fcn = nn.BCEWithLogitsLoss(
-        pos_weight=torch.as_tensor(config.mine_class_loss_weight)
-    )
+    if config.loss_fn is "BCE":
+        backprop_loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor(config.mine_class_loss_weight))
+        other_loss_fn = DiceLoss()
+        other_loss = "DICE"
+    elif config.loss_fn is "DICE":
+        other_loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor(config.mine_class_loss_weight))
+        backprop_loss_fn = DiceLoss()
+        other_loss = "BCE"
+    else:
+        raise ValueError(config.loss_fn + " is not supported")
     
     learner = CustomSemanticSegmentationLearner(
         optimizer=optimizer,
-        loss=loss_fcn,
+        loss=backprop_loss_fn,
+        other_loss=other_loss_fn,
+        backprop_loss_name=config.loss_fn,
+        other_loss_name=other_loss, 
         experiment_config=config,
         cfg=learner_cfg,
         output_dir=config.output_dir,

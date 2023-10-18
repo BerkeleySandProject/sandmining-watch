@@ -12,6 +12,7 @@ unet_orig_config = SupervisedTrainingConfig(
     output_dir=expanduser("~/sandmining-watch/out/unet_small"),
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=2.,
+    loss_fn="DICE",
 )
 
 unet_resblocks_config = SupervisedTrainingConfig(
@@ -25,6 +26,7 @@ unet_resblocks_config = SupervisedTrainingConfig(
     output_dir=expanduser("~/sandmining-watch/out/unet_resblocks"),
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=2.,
+    loss_fn="DICE",
 )
 
 resnet18_unet_config = SupervisedTrainingConfig(
@@ -38,6 +40,7 @@ resnet18_unet_config = SupervisedTrainingConfig(
     output_dir=expanduser("~/sandmining-watch/out/resnet18_unet"),
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=2.,
+    loss_fn="DICE",
 )
 
 resnet34_unet_config = SupervisedTrainingConfig(
@@ -51,6 +54,7 @@ resnet34_unet_config = SupervisedTrainingConfig(
     output_dir=expanduser("~/sandmining-watch/out/resnet34_unet"),
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=2.,
+    loss_fn="DICE",
 )
 
 resnet50_unet_config = SupervisedTrainingConfig(
@@ -64,4 +68,5 @@ resnet50_unet_config = SupervisedTrainingConfig(
     output_dir=expanduser("~/sandmining-watch/out/resnet50_unet"),
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=2.,
+    loss_fn="DICE",
 )
