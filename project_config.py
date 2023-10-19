@@ -55,7 +55,9 @@ LABELBOX_PROJECT_ID = "cllbeyixh0bxt07uxfvg977h3"
 
 # Google Cloud Platform
 GCP_PROJECT_NAME = "gee-sand"
-BUCKET_NAME = "sand_mining_median"
+# BUCKET_NAME = "sand_mining_median"
+
+BUCKET_NAME = "sand_mining_test"
 
 # Weight and Biases
 WANDB_PROJECT_NAME = "sandmine_detector"

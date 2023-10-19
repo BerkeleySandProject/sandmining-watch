@@ -1,9 +1,11 @@
+from typing import List
 import numpy as np
 from math import ceil
+from rastervision.core.box import Box
 from rastervision.core.data import (
-    ClassInferenceTransformer, GeoJSONVectorSource,
+    ClassInferenceTransformer, GeoJSONVectorSource, RasterTransformer,
     RasterioSource, MultiRasterSource, RasterizedSource, Scene,
-    SemanticSegmentationLabelSource
+    SemanticSegmentationLabelSource, VectorSource
 )
 from rastervision.core.data.raster_transformer.nan_transformer import NanTransformer
 
@@ -16,6 +18,9 @@ from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, 
 from utils.schemas import ObservationPointer
 from ml.norm_data import norm_s1_transformer, norm_s2_transformer, divide_by_10000_transformer
 from ml.augmentations import DEFAULT_AUGMENTATIONS
+
+from rasterio.features import rasterize, MergeAlg
+import geopandas as gpd
 
 
 def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
@@ -159,4 +164,107 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
         transform=DEFAULT_AUGMENTATIONS,
         normalize=True,
     )
+
+#Override RasterizedSource to use probability instead of integer class_ids
+def merge_max(value):
+    return np.max(value)
+
+def geoms_to_raster_probability(df: gpd.GeoDataFrame, window: 'Box',
+                    background_class_id: int, all_touched: bool,
+                    extent: 'Box') -> np.ndarray:
+    """Rasterize geometries that intersect with the window."""
+    if len(df) == 0:
+        return np.full(window.size, background_class_id, dtype=np.float32)
+
+    window_geom = window.to_shapely()
+
+    # subset to shapes that intersect window
+    df_int = df[df.intersects(window_geom)]
+    # transform to window frame of reference
+    shapes = df_int.translate(xoff=-window.xmin, yoff=-window.ymin)
+    # class IDs of each shape
+    class_ids = df_int['class_id']
+
+    print ("\n HERE! Class IDs: ", class_ids)
+
+    # if len(shapes) > 0:
+    #     raster = rasterize(
+    #         shapes=list(zip(shapes, class_ids)),
+    #         out_shape=window.size,
+    #         fill=background_class_id,
+    #         merge_alg=merge_max,#MergeAlg.max,  #for overlapping geometries, use the maximum value
+    #         all_touched=all_touched)
+    # else:
+    #     raster = np.full(window.size, background_class_id, dtype=np.float32)
+
+    #alternative way to rasterize, but it is slower
+    # Rasterize each polygon separately
+    rasters = []
+
+    #iterate over each geometry in df_int, and rasterize it
+    for i in range(len(df_int)):
+        print(i,shapes.iloc[i], class_ids.iloc[i])
+        raster = rasterize(
+                    shapes = [(shapes.iloc[i], class_ids.iloc[i])],
+                    out_shape = window.size,
+                    fill = background_class_id,
+                    all_touched=all_touched)
+        print(raster)
+        rasters.append(raster)  
+    print('Done')
+    #Now merge the rasters such that the maximum value is taken for each pixel
+    raster = np.maximum.reduce(rasters)
+    print('reduction done: ', raster)
+
+    # for class_id in df['class_id'].unique():
+    #     print('Processing ', class_id)
+    #     mask = df['class_id'] == class_id
+    #     shapes = list(zip(df.loc[mask, 'geometry'], np.ones(mask.sum()) * class_id))
+    #     print(shapes)
+    #     raster = rasterize(
+    #         shapes=shapes,
+    #         out_shape=window.size,
+    #         fill=background_class_id,
+    #         all_touched=all_touched
+    #     )
+    #     rasters.append(raster)
+
+    # Take the element-wise maximum of the resulting rasters
+    # raster = np.maximum.reduce(rasters)
+    return raster
+
+
+class RasterizedSourceProbability(RasterizedSource):
+    def __init__(self, vector_source: VectorSource, 
+                 background_class_id: int, 
+                 extent: Box, all_touched: bool = False, 
+                 raster_transformers: List[RasterTransformer] = ...):
+        super().__init__(vector_source, background_class_id, extent, all_touched, raster_transformers)
+
+    def _get_chip(self, window):
+        """Return the chip located in the window.
+
+        Polygons falling within the window are rasterized using the class_id, and
+        the background is filled with background_class_id. Also, any pixels in the
+        window outside the extent are zero, which is the don't-care class for
+        segmentation.
+
+        Args:
+            window: Box
+
+        Returns:
+            [height, width, channels] numpy array
+        """
+        # log.debug(f'Rasterizing window: {window}')
+        chip = geoms_to_raster_probability(
+            self.df,
+            window,
+            background_class_id=self.background_class_id,
+            extent=self.extent,
+            all_touched=self.all_touched)
+        # Add third singleton dim since rasters must have >=1 channel.
+        chip = np.expand_dims(chip, 2)
+        print('Chip shape: ', chip.shape)
+        return chip
+        return np.expand_dims(chip, 2)
 
