@@ -33,6 +33,10 @@ class NormalizationS2Choice(Enum):
     ChannelWise = "channelwise" # For each channel, projects 4 standard deviations between [0,255] / [0,1]
     DivideBy10000 = "divideby10000"  # Used by SSL4EO
 
+class BackpropLossChoice(Enum):
+    BCE = "BCE"
+    DICE = "DICE"
+
 @dataclass
 class SupervisedTrainingConfig:
     model_type: ModelChoice
@@ -41,7 +45,7 @@ class SupervisedTrainingConfig:
     tile_size: int
     s2_channels: Optional[List[int]] # If none, RV will take all channels
     s2_normalization: NormalizationS2Choice
-    loss_fn: str
+    loss_fn: BackpropLossChoice
     batch_size: int
     learning_rate: float
     output_dir: str
