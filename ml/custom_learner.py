@@ -35,26 +35,21 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
     """
     def __init__(self, 
                  experiment_config, 
-                 other_loss,
-                 backprop_loss_name,
-                 other_loss_name, 
                  **kwargs):
         self.experiment_config = experiment_config
-        self.other_loss = other_loss
-        self.backprop_loss_str = backprop_loss_name
-        self.other_loss_str = other_loss_name
+        self.bce_loss = nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor(experiment_config.mine_class_loss_weight))
+        self.dice_loss = DiceLoss()
         super().__init__(**kwargs)
 
     def build_metric_names(self):
         metrics = super().build_metric_names()
         metrics.remove("train_loss")
         metrics.remove("val_loss")
-        metrics.append("train_" + self.backprop_loss_str + "_loss")
-        metrics.append("train_" + self.other_loss_str + "_loss")
-        metrics.append("val_" + self.backprop_loss_str + "_loss")
-        metrics.append("val_" + self.other_loss_str + "_loss")
+        metrics.append("train_bce_loss")
+        metrics.append("train_dice_loss")
+        metrics.append("val_bce_loss")
+        metrics.append("val_dice_loss")
         return metrics
-
 
     def train_epoch(
             self,
@@ -73,7 +68,15 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
                 batch = (x, y)
                 optimizer.zero_grad()
                 output = self.train_step(batch, batch_ind)
-                output["train_" + self.backprop_loss_str + "_loss"].backward()
+
+                if self.experiment_config.loss_fn is "DICE":
+                    loss_to_backpropagate = output["train_dice_loss"]
+                elif self.experiment_config.loss_fn is "BCE":
+                    loss_to_backpropagate = output["train_bce_loss"]
+                else:
+                    raise ValueError(f"Unexpected value for loss_fn")
+                loss_to_backpropagate.backward()
+
                 optimizer.step()
                 # detach tensors in the output, if any, to avoid memory leaks
                 for k, v in output.items():
@@ -93,14 +96,14 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
     def train_step(self, batch, batch_ind):
         x, y = batch
         out = self.post_forward(self.model(x))
-        return {"train_" + self.backprop_loss_str + "_loss": self.loss(out, y), 
-                "train_" + self.other_loss_str + "_loss": self.other_loss(out, y)}
+        return {"train_bce_loss": self.bce_loss(out, y),
+                "train_dice_loss": self.dice_loss(out, y)}
     
     def validate_step(self, batch, batch_ind):
         x, y = batch
         out = self.post_forward(self.model(x))
-        val_loss = self.loss(out, y)
-        other_val_loss = self.other_loss(out, y)
+        val_bce_loss = self.bce_loss(out, y)
+        val_dice_loss = self.dice_loss(out, y)
         out = torch.sigmoid(out)
 
         num_labels = len(self.cfg.data.class_names)
@@ -108,8 +111,8 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         out = self.prob_to_pred(out).view(-1)
         conf_mat = compute_conf_mat(out, y, num_labels)
 
-        return {"val_" + self.backprop_loss_str + "_loss": val_loss,
-                "val_" + self.other_loss_str + "_loss": other_val_loss,
+        return {"val_bce_loss": val_bce_loss,
+                "val_dice_loss": val_dice_loss,
                  'conf_mat': conf_mat}
     
     def validate_epoch(self, dl: DataLoader) -> MetricDict:
@@ -134,15 +137,15 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
     
     def validate_end(self, outputs, num_samples):
         conf_mat = sum([o['conf_mat'] for o in outputs])
-        val_loss = torch.stack([o["val_" + self.backprop_loss_str + "_loss"]
+        val_bce_loss = torch.stack([o["val_bce_loss"]
                                 for o in outputs]).sum() / num_samples
-        other_val_loss = torch.stack([o["val_" + self.other_loss_str + "_loss"]
+        val_dice_loss = torch.stack([o["val_dice_loss"]
                                 for o in outputs]).sum() / num_samples
         conf_mat_metrics = compute_conf_mat_metrics(conf_mat,
                                                     self.cfg.data.class_names)
 
-        metrics = {"val_" + self.backprop_loss_str + "_loss": val_loss.item(),
-                   "val_" + self.other_loss_str + "_loss": other_val_loss.item()}
+        metrics = {"val_bce_loss": val_bce_loss.item(),
+                   "val_dice_loss": val_dice_loss.item()}
         metrics.update(conf_mat_metrics)
 
         return metrics
@@ -200,10 +203,10 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
             project=WANDB_PROJECT_NAME,
             config=self.get_config_dict_for_wandb_log(),
         )
-        wandb.define_metric("val_" + self.backprop_loss_str + "_loss", summary="min")
-        wandb.define_metric("val_" + self.other_loss + "_loss", summary="min")
-        wandb.define_metric("train_" + self.backprop_loss_str + "_loss", summary="min")
-        wandb.define_metric("train_" + self.other_loss_str + "_loss", summary="min")
+        wandb.define_metric("val_bce_loss", summary="min")
+        wandb.define_metric("val_dice_loss", summary="min")
+        wandb.define_metric("train_bce_loss", summary="min")
+        wandb.define_metric("train_dice_loss", summary="min")
         wandb.define_metric("sandmine_f1", summary="max")
         wandb.define_metric("sandmine_precision", summary="max")
         wandb.define_metric("sandmine_recall", summary="max")
@@ -402,24 +405,9 @@ def learner_factory(
         class_loss_weights=[1., config.mine_class_loss_weight]
     )
     learner_cfg = SemanticSegmentationLearnerConfig(data=data_cfg, solver=solver_cfg)
-
-    if config.loss_fn is "BCE":
-        backprop_loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor(config.mine_class_loss_weight))
-        other_loss_fn = DiceLoss()
-        other_loss = "DICE"
-    elif config.loss_fn is "DICE":
-        other_loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor(config.mine_class_loss_weight))
-        backprop_loss_fn = DiceLoss()
-        other_loss = "BCE"
-    else:
-        raise ValueError(config.loss_fn + " is not supported")
-    
+  
     learner = CustomSemanticSegmentationLearner(
         optimizer=optimizer,
-        loss=backprop_loss_fn,
-        other_loss=other_loss_fn,
-        backprop_loss_name=config.loss_fn,
-        other_loss_name=other_loss, 
         experiment_config=config,
         cfg=learner_cfg,
         output_dir=config.output_dir,
