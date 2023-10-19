@@ -14,7 +14,8 @@ satmae_ft_lineardecoder_config = SupervisedFinetuningCofig(
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path=None # "/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-base-e199.pth"
+    encoder_weights_path=None, # "/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-base-e199.pth"
+    loss_fn=BackpropLossChoice.DICE
 )
 
 satmae_ft_doubleupsampling_config = SupervisedFinetuningCofig(
@@ -29,7 +30,8 @@ satmae_ft_doubleupsampling_config = SupervisedFinetuningCofig(
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.FreezeEmbed,
-    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-base-e199.pth"
+    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-base-e199.pth",
+    loss_fn=BackpropLossChoice.DICE
 )
 
 satmae_large_ft_doubleupsampling_config = SupervisedFinetuningCofig(
@@ -44,5 +46,6 @@ satmae_large_ft_doubleupsampling_config = SupervisedFinetuningCofig(
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth"
+    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
+    loss_fn=BackpropLossChoice.DICE
 )
