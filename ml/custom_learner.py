@@ -69,9 +69,9 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
                 optimizer.zero_grad()
                 output = self.train_step(batch, batch_ind)
 
-                if self.experiment_config.loss_fn is "DICE":
+                if self.experiment_config.loss_fn.value is "DICE":
                     loss_to_backpropagate = output["train_dice_loss"]
-                elif self.experiment_config.loss_fn is "BCE":
+                elif self.experiment_config.loss_fn.value is "BCE":
                     loss_to_backpropagate = output["train_bce_loss"]
                 else:
                     raise ValueError(f"Unexpected value for loss_fn")
