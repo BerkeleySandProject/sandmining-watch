@@ -222,16 +222,18 @@ class BinarySegmentationLearner(ABC):
             metrics[k] = torch.stack([o[k] for o in outputs
                                       ]).sum().item() / num_samples
         return metrics
-
-    def validate_end(self, outputs, num_samples=None):
+    
+    def validate_end(self, outputs, num_samples):
         # outputs is a list of dictionaries.
         # Each element in the list corresponds to outputs from one validation batch
 
+        def concat_values(key):
+            return torch.cat([o[key] for o in outputs])
         def stack_values(key):
             return torch.stack([o[key] for o in outputs])
-
-        out_probabilites = stack_values("out_probabilities")
-        ground_truths = stack_values("ground_truth")
+        
+        out_probabilites = concat_values("out_probabilities")
+        ground_truths = concat_values("ground_truth")
         val_bce_losses = stack_values("val_bce_loss")
         val_dice_losses = stack_values("val_dice_loss")
 
@@ -249,8 +251,8 @@ class BinarySegmentationLearner(ABC):
         metrics = {
             **conf_mat_metrics,
             "sandmine_average_precision": average_precision,
-            "val_bce_loss": val_bce_losses.mean(),
-            "val_dice_loss": val_dice_losses.mean(),
+            "val_bce_loss": val_bce_losses.sum() / num_samples,
+            "val_dice_loss": val_dice_losses.sum() / num_samples,
         }
         return metrics
 
@@ -590,6 +592,7 @@ class BinarySegmentationLearner(ABC):
     def validate_epoch(self, dl: DataLoader) -> MetricDict:
         start = time.time()
         self.model.eval()
+        num_samples = 0
         outputs = []
         with torch.inference_mode():
             with tqdm(dl, desc='Validating') as bar:
@@ -600,7 +603,8 @@ class BinarySegmentationLearner(ABC):
                     batch = (x, y)
                     output = self.validate_step(batch, batch_ind)
                     outputs.append(output)
-        metrics = self.validate_end(outputs)
+                    num_samples += x.shape[0]
+        metrics = self.validate_end(outputs, num_samples)
         end = time.time()
         metrics['valid_time'] = datetime.timedelta(seconds=end - start)
         return metrics
