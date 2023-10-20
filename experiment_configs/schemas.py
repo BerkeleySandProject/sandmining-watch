@@ -48,7 +48,6 @@ class SupervisedTrainingConfig:
     loss_fn: BackpropLossChoice
     batch_size: int
     learning_rate: float
-    output_dir: str
     datasets: DatasetChoice
     mine_class_loss_weight: float
 
