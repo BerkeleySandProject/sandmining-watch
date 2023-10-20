@@ -18,6 +18,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torchmetrics.classification import BinaryAveragePrecision
 
 from rastervision.core.data import SemanticSegmentationLabels, SemanticSegmentationSmoothLabels
 from rastervision.pipeline.file_system import make_dir
@@ -173,6 +174,7 @@ class BinarySegmentationLearner(ABC):
         metric_names = [
             'epoch', 'train_time', 'valid_time',
             'avg_f1', 'avg_precision', 'avg_recall',
+            'sandmine_average_precision'
             # In the following, we hardcoded our metric names for our loss functions
             'train_bce_loss', 'val_bce_loss',
             'train_dice_loss', 'val_dice_loss',
@@ -197,17 +199,15 @@ class BinarySegmentationLearner(ABC):
         out = self.post_forward(self.model(x))
         val_bce_loss = self.bce_loss(out, y)
         val_dice_loss = self.dice_loss(out, y)
-        out = torch.sigmoid(out)
+        out_probabilities = torch.sigmoid(out)
 
-        num_labels = 2 # binary labels
-        y = y.view(-1)
-        out = self.prob_to_pred(out).view(-1)
-        conf_mat = compute_conf_mat(out, y, num_labels)
+        return {
+            "val_bce_loss": val_bce_loss,
+            "val_dice_loss": val_dice_loss,
+            "out_probabilities": out_probabilities.view(-1),
+            "ground_truth": y.int().view(-1)
+        }
 
-        # In the following, we hardcoded our metric names for our loss functions
-        return {"val_bce_loss": val_bce_loss,
-                "val_dice_loss": val_dice_loss,
-                 'conf_mat': conf_mat}
 
     def train_end(self, outputs: List[MetricDict],
                   num_samples: int) -> MetricDict:
@@ -222,20 +222,38 @@ class BinarySegmentationLearner(ABC):
             metrics[k] = torch.stack([o[k] for o in outputs
                                       ]).sum().item() / num_samples
         return metrics
-
+    
     def validate_end(self, outputs, num_samples):
-        conf_mat = sum([o['conf_mat'] for o in outputs])
-        val_bce_loss = torch.stack([o["val_bce_loss"]
-                                for o in outputs]).sum() / num_samples
-        val_dice_loss = torch.stack([o["val_dice_loss"]
-                                for o in outputs]).sum() / num_samples
-        conf_mat_metrics = compute_conf_mat_metrics(conf_mat,
-                                                    self.class_names)
+        # outputs is a list of dictionaries.
+        # Each element in the list corresponds to outputs from one validation batch
 
-        metrics = {"val_bce_loss": val_bce_loss.item(),
-                   "val_dice_loss": val_dice_loss.item()}
-        metrics.update(conf_mat_metrics)
+        def concat_values(key):
+            return torch.cat([o[key] for o in outputs])
+        def stack_values(key):
+            return torch.stack([o[key] for o in outputs])
+        
+        out_probabilites = concat_values("out_probabilities")
+        ground_truths = concat_values("ground_truth")
+        val_bce_losses = stack_values("val_bce_loss")
+        val_dice_losses = stack_values("val_dice_loss")
 
+        out_classes =  self.prob_to_pred(out_probabilites)
+        conf_mat = compute_conf_mat(
+            out_classes,
+            ground_truths,
+            num_labels=2, # we have two classes
+        )
+        conf_mat_metrics = compute_conf_mat_metrics(conf_mat, self.class_names)
+
+        bap = BinaryAveragePrecision(thresholds=None)
+        average_precision = bap(out_probabilites, ground_truths)
+
+        metrics = {
+            **conf_mat_metrics,
+            "sandmine_average_precision": average_precision,
+            "val_bce_loss": val_bce_losses.sum() / num_samples,
+            "val_dice_loss": val_dice_losses.sum() / num_samples,
+        }
         return metrics
 
     def post_forward(self, x: Any) -> Any:
@@ -651,11 +669,8 @@ class BinarySegmentationLearner(ABC):
         )
         wandb.define_metric("val_bce_loss", summary="min")
         wandb.define_metric("val_dice_loss", summary="min")
-        wandb.define_metric("train_bce_loss", summary="min")
-        wandb.define_metric("train_dice_loss", summary="min")
         wandb.define_metric("sandmine_f1", summary="max")
-        wandb.define_metric("sandmine_precision", summary="max")
-        wandb.define_metric("sandmine_recall", summary="max")
+        wandb.define_metric("sandmine_average_precision", summary="max")
         wandb.watch(self.model, log_freq=100, log_graph=True)
 
     def metrics_to_log_wand(self, metrics):
