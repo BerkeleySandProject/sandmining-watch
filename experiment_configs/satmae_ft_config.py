@@ -1,6 +1,5 @@
 from .schemas import *
 from models.satmae.pretrained_satmae_config import satmea_pretrained_encoder_bands_idx
-from os.path import expanduser
 
 satmae_ft_lineardecoder_config = SupervisedFinetuningCofig(
     model_type=ModelChoice.SatmaeBaseLinearDecoder,
@@ -10,7 +9,6 @@ satmae_ft_lineardecoder_config = SupervisedFinetuningCofig(
     s2_normalization=NormalizationS2Choice.ChannelWise,
     batch_size=256,
     learning_rate=1e-3,
-    output_dir=expanduser("~/sandmining-watch/out/satmae-ft"),
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
@@ -26,7 +24,6 @@ satmae_ft_doubleupsampling_config = SupervisedFinetuningCofig(
     s2_normalization=NormalizationS2Choice.ChannelWise,
     batch_size=2,
     learning_rate=1e-3,
-    output_dir=expanduser("~/sandmining-watch/out/satmae-ft-doubleupsampling"),
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.FreezeEmbed,
@@ -42,7 +39,6 @@ satmae_large_ft_doubleupsampling_config = SupervisedFinetuningCofig(
     s2_normalization=NormalizationS2Choice.ChannelWise,
     batch_size=64,
     learning_rate=1e-4,
-    output_dir=expanduser("~/sandmining-watch/out/satmae-large-ft-doubleupsampling"),
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
