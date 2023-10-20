@@ -121,6 +121,8 @@ def get_confidence_geojson_fc_from_annotation_objects(annotation_objects):
     confidence =[o['classifications'][0]['radio_answer']['name'] for o in annotation_objects]
     #parse confidence and convert to float after removing any spaces and "%" sign
     confidence = [float(c.replace(" ", "").replace("%", "")) for c in confidence]
+    #convert to 0-1 scale
+    confidence = [c/100. for c in confidence]
 
 
     geojson_out = {}
@@ -135,7 +137,7 @@ def get_confidence_geojson_fc_from_annotation_objects(annotation_objects):
     
     #read confidence from geojson_out['features] from each 'geometries' and add to geojson_out['features]
     for i in range(len(geojson_out['features'])):
-        geojson_out['features'][i]['properties'] = {'confidence': confidence[i]}
+        geojson_out['features'][i]['properties'] = {'class_id': confidence[i]}
 
 
 

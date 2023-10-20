@@ -124,7 +124,13 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
         ]
     )
 
-    label_raster_source = RasterizedSource(
+    # label_raster_source = RasterizedSource(
+    #     vector_source,
+    #     background_class_id=CLASS_CONFIG.null_class_id,
+    #     extent=img_raster_source.extent
+    # )
+
+    label_raster_source = RasterizedSourceProbability(
         vector_source,
         background_class_id=CLASS_CONFIG.null_class_id,
         extent=img_raster_source.extent
@@ -185,36 +191,41 @@ def geoms_to_raster_probability(df: gpd.GeoDataFrame, window: 'Box',
     # class IDs of each shape
     class_ids = df_int['class_id']
 
-    print ("\n HERE! Class IDs: ", class_ids)
+    # print ("\n HERE! Class IDs: ", class_ids)
 
     # if len(shapes) > 0:
     #     raster = rasterize(
     #         shapes=list(zip(shapes, class_ids)),
     #         out_shape=window.size,
     #         fill=background_class_id,
-    #         merge_alg=merge_max,#MergeAlg.max,  #for overlapping geometries, use the maximum value
+    #         # merge_alg=merge_max,#MergeAlg.max,  #for overlapping geometries, use the maximum value
+    #         dtype=np.float32,
     #         all_touched=all_touched)
     # else:
     #     raster = np.full(window.size, background_class_id, dtype=np.float32)
 
     #alternative way to rasterize, but it is slower
     # Rasterize each polygon separately
-    rasters = []
+    
 
-    #iterate over each geometry in df_int, and rasterize it
-    for i in range(len(df_int)):
-        print(i,shapes.iloc[i], class_ids.iloc[i])
-        raster = rasterize(
-                    shapes = [(shapes.iloc[i], class_ids.iloc[i])],
-                    out_shape = window.size,
-                    fill = background_class_id,
-                    all_touched=all_touched)
-        print(raster)
-        rasters.append(raster)  
-    print('Done')
-    #Now merge the rasters such that the maximum value is taken for each pixel
-    raster = np.maximum.reduce(rasters)
-    print('reduction done: ', raster)
+    if len(shapes) > 0:
+        rasters = []
+        #iterate over each geometry in df_int, and rasterize it
+        for i in range(len(df_int)):
+            # print(i,shapes.iloc[i], class_ids.iloc[i])
+            raster = rasterize(
+                        shapes = [(shapes.iloc[i], class_ids.iloc[i])],
+                        out_shape = window.size,
+                        fill = background_class_id,
+                        all_touched=all_touched)
+            # print(raster)
+            rasters.append(raster)  
+        #Now merge the rasters such that the maximum value is taken for each pixel
+        raster = np.maximum.reduce(rasters)
+
+    else:
+        raster = np.full(window.size, background_class_id, dtype=np.float32)
+    # print('reduction done: ', raster)
 
     # for class_id in df['class_id'].unique():
     #     print('Processing ', class_id)
@@ -238,7 +249,7 @@ class RasterizedSourceProbability(RasterizedSource):
     def __init__(self, vector_source: VectorSource, 
                  background_class_id: int, 
                  extent: Box, all_touched: bool = False, 
-                 raster_transformers: List[RasterTransformer] = ...):
+                 raster_transformers: List[RasterTransformer] = []):
         super().__init__(vector_source, background_class_id, extent, all_touched, raster_transformers)
 
     def _get_chip(self, window):
@@ -263,8 +274,8 @@ class RasterizedSourceProbability(RasterizedSource):
             extent=self.extent,
             all_touched=self.all_touched)
         # Add third singleton dim since rasters must have >=1 channel.
-        chip = np.expand_dims(chip, 2)
-        print('Chip shape: ', chip.shape)
-        return chip
+        # chip = np.expand_dims(chip, 2)
+        # print('Chip shape: ', chip.shape)
+        # return chip
         return np.expand_dims(chip, 2)
 

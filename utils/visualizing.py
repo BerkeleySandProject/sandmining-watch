@@ -9,7 +9,8 @@ from rastervision.pytorch_learner.utils import color_to_triple
 from rastervision.pytorch_learner import SemanticSegmentationVisualizer
 
 from project_config import CLASS_CONFIG, RGB_BANDS
-
+from skimage import exposure
+from matplotlib.colors import ListedColormap
 
 class Visualizer():
     """
@@ -54,6 +55,44 @@ class Visualizer():
         ax.set_title(title)
         plt.show()
 
+    def show_rgb_with_labels(self, img, label_img):
+        rgb_img = self.rgb_from_bandstack(img)
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+        fig.tight_layout(w_pad=-2)
+        #enhance the contrast automatically
+        rgb_img = exposure.equalize_adapthist(rgb_img, clip_limit=0.03)
+        ax1.matshow(rgb_img)
+        ax1.axis('off')
+        cmap = ListedColormap(CLASS_CONFIG.color_triples)
+        # cmap = get_default_cmap()
+        ax2.imshow(label_img, cmap=cmap)
+        ax2.axis('off')
+        plt.show()
+
+    def show_rgb_overlay_labels(self, img, label_img):
+        rgb_img = self.rgb_from_bandstack(img)
+        fig, ax1 = plt.subplots(1, 1, figsize=(10, 10))
+        fig.tight_layout(w_pad=-2)
+        #enhance the contrast automatically
+        # rgb_img = exposure.equalize_adapthist(rgb_img, clip_limit=0.03)
+        rgb_img = exposure.adjust_gamma(rgb_img)
+        ax1.imshow(rgb_img)
+        ax1.axis('off')
+        cmap = ListedColormap(CLASS_CONFIG.color_triples)
+        #convert the label image such that any pixels with value 0 are transparent
+        label_img = np.ma.masked_where(label_img == 0, label_img)
+        ax1.imshow(label_img, cmap=cmap, zorder=1)
+        legend_items = [
+        patches.Patch(facecolor=cmap(i), edgecolor='black', label=cname)
+        for i, cname in enumerate(CLASS_CONFIG.names)]
+        ax1.legend(
+            handles=legend_items,
+            ncol=len(CLASS_CONFIG),
+            loc='upper center',
+            fontsize=14,
+            bbox_to_anchor=(0.5, 0))
+        plt.show()
+
     
 # def to_rgb(img):
 #     if img.shape[2] == 3:
@@ -92,7 +131,7 @@ def get_default_cmap(cvals=[0,  1], colors=CLASS_CONFIG.colors):
     return cmap
     
 def show_rgb_with_labels(img, label_img):
-    img = to_rgb(img)
+    # img = to_rgb(img)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     fig.tight_layout(w_pad=-2)
     ax1.matshow(img)
@@ -132,7 +171,7 @@ def show_predictions(predictions, show=False):
 
     
 def show_labels(img, class_config=CLASS_CONFIG):
-    fig, ax = plt.subplots(figsize=(5, 5))
+    fig, ax = plt.subplots(figsize=(10, 10))
     cmap = mcolors.ListedColormap(class_config.color_triples)
     ax.matshow(img, cmap=cmap)
     legend_items = [
