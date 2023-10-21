@@ -29,6 +29,13 @@ def get_annotation_path(key):
     path = f"labels/{observation}_median/annotations/{image}_annotations.geojson"
     return path
 
+def get_river_path(key, buffer_m):
+    splitted = key.split("_")
+    observation = "_".join(splitted[:4])
+    image = "_".join(splitted[:5])
+    path = f"labels/{observation}_median/rivers/{observation}_rivers_{buffer_m}m.geojson"
+    return path
+
 def get_annotations(gcp_client):
     # Returns dictionary where key is location (e.g. "Ken_Banda_80-35_25-68")
     # and value is list of paths to _annotations.geojson

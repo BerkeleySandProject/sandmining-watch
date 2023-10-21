@@ -47,3 +47,15 @@ def upload_json(client: storage.Client, obj, destination_path, bucket_name=DEFAU
     bucket = client.get_bucket(bucket_name)
     blob = bucket.blob(destination_path)
     blob.upload_from_string(json.dumps(obj), content_type='application/json')    
+
+def upload_raw(client: storage.Client, obj, destination_path, bucket_name=DEFAULT_BUCKET_NAME):
+    bucket = client.get_bucket(bucket_name)
+    blob = bucket.blob(destination_path)
+    # blob.upload_from_string(obj, content_type='application/json')  
+    blob.upload_from_file(obj, content_type='application/json')
+
+def upload_file(client: storage.Client, source_path, destination_path, bucket_name=DEFAULT_BUCKET_NAME):
+    bucket = client.get_bucket(bucket_name)
+    blob = bucket.blob(destination_path)
+    with open(source_path, 'rb') as f:
+        blob.upload_from_file(f)
