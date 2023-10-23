@@ -14,6 +14,8 @@ class ModelChoice(Enum):
     ResNet18UNet = "resnet18-unet"
     ResNet34UNet = "resnet34-unet"
     ResNet50UNet = "resnet50-unet"
+    # Remove once comparison between normal and light decoders are done
+    Resnet50NormalUNet = "resnet50-normal-unet"
 
 class OptimizerChoice(Enum):
     AdamW = "adamw"

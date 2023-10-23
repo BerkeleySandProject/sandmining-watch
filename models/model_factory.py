@@ -41,6 +41,10 @@ def model_factory(
         model = ResNetEncoderUNetDecoder("resnet34", n_channels, n_classes)
     elif config.model_type == ModelChoice.ResNet50UNet:
         from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
+        model = ResNetEncoderUNetDecoder("resnet50", n_channels, n_classes, light_decoder=True)
+    # Remove once comparison between normal and light decoders are done
+    elif config.model_type == ModelChoice.Resnet50NormalUNet:
+        from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
         model = ResNetEncoderUNetDecoder("resnet50", n_channels, n_classes)
     else:
         raise ValueError("Error in model selection")

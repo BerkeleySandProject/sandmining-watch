@@ -9,7 +9,7 @@ import os
 # https://github.com/mberkay0/pretrained-backbones-unet/blob/main/backbones_unet/model/unet.py
 # Download pretrained backbones from https://github.com/zhu-xlab/SSL4EO-S12
 class ResNetEncoderUNetDecoder(nn.Module):
-    def __init__(self, model_name, n_channels, n_classes) -> None:
+    def __init__(self, model_name, n_channels, n_classes, light_decoder=False) -> None:
         super().__init__()
         # Load TorchVision prebuilt model
         encoder_base = getattr(torchvision.models, model_name)()
@@ -21,18 +21,33 @@ class ResNetEncoderUNetDecoder(nn.Module):
         encoder_base.fc = nn.Sequential()
         
         self.encoder = create_feature_extractor(encoder_base, {"relu": "x1", "layer1": "x2", "layer2": "x3", "layer3": "x4", "layer4": "out"})
-        if model_name == "resnet18" or model_name == "resnet34":
-            self.up1 = Up(512, 256, bilinear=False)
-            self.up2 = Up(256, 128, bilinear=False)
-            self.up3 = Up(128, 64, bilinear=False, up_in_channels=128)
-            self.up4 = Up(128, 64, bilinear=False, up_in_channels=64)
-        elif model_name == "resnet50" or model_name == "resnet101":
-            self.up1 = Up(2048, 1024, bilinear=False)
-            self.up2 = Up(1024, 512, bilinear=False)
-            self.up3 = Up(512, 256, bilinear=False)
-            self.up4 = Up(128, 64, bilinear=False, up_in_channels=256)
+        
+        if light_decoder:
+            if model_name == "resnet18" or model_name == "resnet34":
+                self.up1 = SmallUp(512, 256, 256, 128, bilinear=False)
+                self.up2 = SmallUp(128, 128, 128, 64, bilinear=False)
+                self.up3 = SmallUp(64, 64, 128, 64, bilinear=False)
+                self.up4 = SmallUp(64, 64, 128, 64, bilinear=False)
+            elif model_name == "resnet50" or model_name == "resnet101":
+                self.up1 = SmallUp(2048, 1024, 1024, 512, bilinear=False)
+                self.up2 = SmallUp(512, 512, 512, 256, bilinear=False)
+                self.up3 = SmallUp(256, 256, 256, 128, bilinear=False)
+                self.up4 = SmallUp(128, 64, 128, 64, bilinear=False)
+            else:
+                raise ValueError("Resnet model_name is not supported")
         else:
-            raise ValueError("Resnet model_name is not supported")
+            if model_name == "resnet18" or model_name == "resnet34":
+                self.up1 = Up(512, 256, bilinear=False)
+                self.up2 = Up(256, 128, bilinear=False)
+                self.up3 = Up(128, 64, bilinear=False, up_in_channels=128)
+                self.up4 = Up(128, 64, bilinear=False, up_in_channels=64)
+            elif model_name == "resnet50" or model_name == "resnet101":
+                self.up1 = Up(2048, 1024, bilinear=False)
+                self.up2 = Up(1024, 512, bilinear=False)
+                self.up3 = Up(512, 256, bilinear=False)
+                self.up4 = Up(128, 64, bilinear=False, up_in_channels=256)
+            else:
+                raise ValueError("Resnet model_name is not supported")
         self.classifier = OutConv(64, n_classes)
 
     def load_encoder_weights(self, path_to_weights):
@@ -62,4 +77,3 @@ class ResNetEncoderUNetDecoder(nn.Module):
         out = self.classifier(out)
         out = F.interpolate(out, x.shape[2:], mode="bilinear", align_corners=False)
         return out
-    
