@@ -61,6 +61,16 @@ def annotations_path_to_s1(path:str):
 def annotations_path_to_rgb(path:str):
     return path.replace("annotations", "rgb").replace(".geojson", ".tif")
 
+def annotations_path_to_rivers(path:str, buffer:str):
+    path = path.replace("annotations", "rivers").replace(".geojson", f"_{buffer}.geojson")
+    # now it still has the date in, strip the date
+    path = path.split("_")
+    # remove the 3rd last element
+    path.pop(-3)
+    # join the rest
+    path = "_".join(path)
+    return path
+
 def path_to_observatation_key(path):
     observation_key:str = path.split("/")[-1]
     remove_strings = ["_rb.tif", "_bs.tif", "_annotations.geojson", "_s1.tif", "_s2.tif"]
@@ -68,7 +78,7 @@ def path_to_observatation_key(path):
         observation_key = observation_key.replace(remove_string, "")
     return observation_key
 
-def observation_factory(gcp_client) -> List[ObservationPointer]:
+def observation_factory(gcp_client, river_buffer='500m') -> List[ObservationPointer]:
     for site, annotations in get_annotations(gcp_client).items():
         for annotation_path in annotations:
             s2_l2a_path = annotations_path_to_s2_l2a(annotation_path)
@@ -81,6 +91,7 @@ def observation_factory(gcp_client) -> List[ObservationPointer]:
                 uri_to_s2_l1c=get_public_url(s2_l1c_path),
                 uri_to_rgb=get_public_url(rgb_path),
                 uri_to_annotations=get_public_url(annotation_path),
+                uri_to_rivers=get_public_url(annotations_path_to_rivers(annotation_path, river_buffer)),
                 name=path_to_observatation_key(s2_l2a_path)
             )
             yield observation
