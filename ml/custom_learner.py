@@ -132,8 +132,12 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
 
         return out
 
-    def prob_to_pred(self, x, threshold=0.5):
-        return (x > threshold).int()
+    # def prob_to_pred(self, x, threshold=0.5):
+    #     return (x > threshold).int()
+    
+    def prob_to_pred(self, x):
+        boundaries = torch.tensor([0, 0.125, 0.375, 0.625, 0.875, 1]).to(self.device)
+        return torch.searchsorted(boundaries, x)
 
     def on_epoch_end(self, curr_epoch, metrics):
         # This funtion extends the regular on_epoch_end() behaviour.
@@ -318,7 +322,7 @@ def learner_factory(
     solver_cfg = SolverConfig(
         lr=config.learning_rate,
         batch_sz=config.batch_size,
-        class_loss_weights=[1., config.mine_class_loss_weight]
+        # class_loss_weights=[1., config.mine_class_loss_weight ]
     )
     learner_cfg = SemanticSegmentationLearnerConfig(data=data_cfg, solver=solver_cfg)
 
