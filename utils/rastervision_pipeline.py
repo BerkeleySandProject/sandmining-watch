@@ -201,7 +201,6 @@ def scene_to_validation_ds(config, scene: Scene):
     ds.init_windows = custom_init_windows.__get__(ds, SemanticSegmentationSlidingWindowGeoDataset)
     #needs to be called again because it's only called during __init__, during which time the custom function has not been overridden
     ds.init_windows()
-    ds.type = "sliding"
 
     return ds
 
