@@ -78,7 +78,7 @@ def path_to_observatation_key(path):
         observation_key = observation_key.replace(remove_string, "")
     return observation_key
 
-def observation_factory(gcp_client, river_buffer='500m') -> List[ObservationPointer]:
+def observation_factory(gcp_client, river_buffer='1000m') -> List[ObservationPointer]:
     for site, annotations in get_annotations(gcp_client).items():
         for annotation_path in annotations:
             s2_l2a_path = annotations_path_to_s2_l2a(annotation_path)

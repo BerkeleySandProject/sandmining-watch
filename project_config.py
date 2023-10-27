@@ -60,5 +60,7 @@ BUCKET_NAME = "sand_mining_median"
 # Weight and Biases
 WANDB_PROJECT_NAME = "sandmine_detector"
 
+#To use river AOIs set this to TRUE
+USE_RIVER_AOIS = True
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'

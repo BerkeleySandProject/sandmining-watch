@@ -8,4 +8,5 @@ class ObservationPointer:
     uri_to_s2_l1c: str
     uri_to_rgb: str
     uri_to_annotations: str
+    uri_to_rivers: str
     name: str
