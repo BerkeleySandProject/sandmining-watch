@@ -210,12 +210,12 @@ from rastervision.core.box import Box
 from typing import List
 from shapely.geometry import Polygon
 
-def custom_within_aoi(self, window: 'Box', aoi_polygons: List[Polygon]) -> bool:
+def custom_within_aoi(window: 'Box', aoi_polygons: List[Polygon], aoi_centroids) -> bool:
     """Check if window is within a list of AOI polygons."""
 
     w = window.to_shapely()
     for polygon in aoi_polygons:
-        if self.aoi_centroids:
+        if aoi_centroids:
             if w.centroid.within(polygon):
                 return True
         else:
@@ -223,7 +223,7 @@ def custom_within_aoi(self, window: 'Box', aoi_polygons: List[Polygon]) -> bool:
                 return True
     return False
 
-def custom_sample_window(self, aoi_centroids = True) -> Box:
+def custom_sample_window(self) -> Box:
         """If scene has AOI polygons, try to find a random window that is
         within the AOI. Otherwise, just return the first sampled window.
 
@@ -241,7 +241,7 @@ def custom_sample_window(self, aoi_centroids = True) -> Box:
 
         for _ in range(self.max_sample_attempts):
             window = self._sample_window()
-            if self.within_aoi(window, self.aoi_polygons):
+            if custom_within_aoi(window, self.aoi_polygons, self.aoi_centroids):
                 return window
         raise StopIteration('Failed to find random window within scene AOI.')
 
@@ -274,9 +274,5 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
 
     #override the sample_window method and within_aoi method
     ds.aoi_centroids = aoi_centroids
-    ds.within_aoi = custom_within_aoi.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
     ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
-    ds.n_windows = n_windows
-    ds.type = "random"
     return ds
-
