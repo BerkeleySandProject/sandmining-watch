@@ -1,4 +1,4 @@
-name: rv_timm0412
+name: rv-21
 channels:
   - conda-forge
   - defaults
@@ -239,7 +239,7 @@ dependencies:
     - pathtools==0.1.2
     - pillow==9.3.0
     - prettytable==3.8.0
-    - protobuf==3.19.6
+    - protobuf==3.20.2
     - psutil==5.9.3
     - pyasn1==0.5.0
     - pyasn1-modules==0.3.0
@@ -259,7 +259,6 @@ dependencies:
     - rastervision-aws-batch==0.21
     - rastervision-aws-s3==0.21
     - rastervision-core==0.21
-    - rastervision-gdal-vsi==0.20
     - rastervision-pipeline==0.21
     - rastervision-pytorch-backend==0.21
     - rastervision-pytorch-learner==0.21
