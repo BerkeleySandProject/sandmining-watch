@@ -202,23 +202,25 @@ def show_windows(img, windows, title='', aoi_polygons=None):
     
     plt.show()
 
+
+from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset 
 def visualize_dataset(ds_list: List[GeoDataset], visualizer):
 
     for ds in ds_list:
         img_rgb = visualizer.rgb_from_bandstack(ds.scene.raster_source[:, :])
 
-    
-        if ds.type == "random":
-            title = f"{ds.scene.id}, N={ds.n_windows}"
-            windows = []
-            for _ in range(ds.n_windows):
-                try:
-                    windows.append(ds.sample_window())
-                except Exception as e:
-                    print(f"Error: {e}. Removing scene {train_ds.scene.id} from dataset")
-                    break
-        else:
+        if isinstance(ds, SemanticSegmentationRandomWindowGeoDataset):
+            title = f"{ds.scene.id}, N={ds.max_windows}"
+            try:
+                windows = [ds.sample_window() for _ in range(ds.max_windows)]
+            except StopIteration as e:
+                print(f"Unable to sample windows for {ds.scene.id}")
+                break
+        
+        elif isinstance(ds, SemanticSegmentationSlidingWindowGeoDataset):
             title = f"{ds.scene.id}, N={len(ds.windows)}"
             windows = ds.windows
+        else:
+            raise ValueError("Unexpected type of dataset")
         
         show_windows(img_rgb, windows, title=title, aoi_polygons=ds.scene.aoi_polygons)
