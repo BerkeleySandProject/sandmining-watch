@@ -16,6 +16,7 @@ from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
 from shapely.geometry import Polygon
 import numpy as np
+from skimage import exposure
 
 class Visualizer():
     """
@@ -38,9 +39,14 @@ class Visualizer():
             return rgb_band_idx
         else:
             return [s2_channels.index(idx) for idx in rgb_band_idx]
-        
+    
+
     def rgb_from_bandstack(self, image):
-        return image[:,:,self.rgb_channels]
+        # apply automatic contrast selection
+        p2, p98 = np.percentile(image[:,:,self.rgb_channels], (2, 98))
+        image_rescale = exposure.rescale_intensity(image[:,:,self.rgb_channels], in_range=(p2, p98))
+        return np.clip(image_rescale, 0, 1.)
+
 
     def show_windows(self, img, windows, title=''):
         rgb_img = self.rgb_from_bandstack(img)
@@ -50,12 +56,9 @@ class Visualizer():
         ax.axis('off')
         # draw windows on top of the image
         for w in windows:
-            p = patches.Polygon(w.to_points(), color='r', linewidth=1, fill=False)
+            p = patches.Polygon(w.to_points(), color='r', linewidth=1.5, fill=False)
             ax.add_patch(p)
-        # draw second and second last window again in a different color
-        # for w in [windows[1], windows[-2]]:
-        #     p = patches.Polygon(w.to_points(), color='b', linewidth=1, fill=False)
-        #     ax.add_patch(p)
+
         ax.autoscale()
         ax.set_title(title)
         plt.show()
@@ -190,12 +193,12 @@ def show_windows(img, windows, title='', aoi_polygons=None):
     ax.axis('off')
     # draw windows on top of the image
     for w in windows:
-        p = patches.Polygon(w.to_points(), color='r', linewidth=1, fill=False)
+        p = patches.Polygon(w.to_points(), color='y', linewidth=0.8, fill=False)
         ax.add_patch(p)
 
     for aoi in aoi_polygons:
         p = mpatches.Polygon(
-            np.array(aoi.exterior.coords), color='blue', linewidth=2, fill=False)
+            np.array(aoi.exterior.coords), color='tab:cyan', linewidth=1, fill=False, linestyle='--')
         ax.add_patch(p)
     ax.autoscale()
     ax.set_title(title)
