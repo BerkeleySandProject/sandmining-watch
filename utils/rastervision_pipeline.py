@@ -194,7 +194,7 @@ def scene_to_validation_ds(config, scene: Scene):
         padding=config.tile_size,
         pad_direction='end',
         transform=None,
-        normalize=True,
+        normalize=True, # If unsigned integer, bring to range [0, 1]
     )
 
     #override windows initialization with custom function
@@ -266,9 +266,8 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
         size_lims=(config.tile_size, config.tile_size+1),
         padding=None,
         max_windows=n_windows,
-        efficient_aoi_sampling=True,
         transform=DEFAULT_AUGMENTATIONS,
-        normalize=True,
+        normalize=True, # If unsigned integer, bring to range [0, 1]
     )
 
     #override the sample_window method and within_aoi method
