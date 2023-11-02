@@ -116,25 +116,28 @@ def warn_if_nan_in_raw_raster(raster_source):
             print(f"WARNING: NaN in raw image {raster_source.uris}")
 
 def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_uri, scene_id, rivers_uri) -> Scene:
-    vector_source = GeoJSONVectorSource(
-        label_uri,
-        img_raster_source.crs_transformer,
-        ignore_crs_field=True,
-        vector_transformers=[
-            ClassInferenceTransformer(default_class_id=CLASS_CONFIG.get_class_id(CLASS_NAME))
-        ]
-    )
+    if label_uri is not None:
+        vector_source = GeoJSONVectorSource(
+            label_uri,
+            img_raster_source.crs_transformer,
+            ignore_crs_field=True,
+            vector_transformers=[
+                ClassInferenceTransformer(default_class_id=CLASS_CONFIG.get_class_id(CLASS_NAME))
+            ]
+        )
 
-    label_raster_source = RasterizedSource(
-        vector_source,
-        background_class_id=CLASS_CONFIG.null_class_id,
-        # extent=img_raster_source.extent
-        bbox = img_raster_source.bbox
-    )
+        label_raster_source = RasterizedSource(
+            vector_source,
+            background_class_id=CLASS_CONFIG.null_class_id,
+            # extent=img_raster_source.extent
+            bbox = img_raster_source.bbox
+        )
 
-    label_source = SemanticSegmentationLabelSource(
-        label_raster_source, class_config=CLASS_CONFIG
-    )
+        label_source = SemanticSegmentationLabelSource(
+            label_raster_source, class_config=CLASS_CONFIG
+        )
+    else:
+        label_source = None
 
     if rivers_uri is not None and USE_RIVER_AOIS: #create the aoi_polygons 
         river_vector_source = GeoJSONVectorSource(
@@ -185,12 +188,15 @@ def custom_init_windows(self) -> None:
         # windows = Box.filter_by_aoi(windows, self.scene.aoi_polygons, within=False)
     self.windows = windows
 
-def scene_to_validation_ds(config, scene: Scene):
+def scene_to_validation_ds(config, scene: Scene, stride=None):
+    if stride is None:
+        stride = config.tile_size
+
     # No augementation and windows don't overlap. Use for validation during training time.
     ds = SemanticSegmentationSlidingWindowGeoDataset(
         scene,
         size=config.tile_size,
-        stride=config.tile_size,
+        stride=stride,
         padding=config.tile_size,
         pad_direction='end',
         transform=None,
@@ -203,7 +209,6 @@ def scene_to_validation_ds(config, scene: Scene):
     ds.init_windows()
 
     return ds
-
     
 from rastervision.core.box import Box
 from typing import List

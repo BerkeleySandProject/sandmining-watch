@@ -34,6 +34,10 @@ def list_files_in_folder(client: storage.Client, folder_name, bucket_name=DEFAUL
     blobs = bucket.list_blobs(prefix=folder_name)
     return list(blobs)
 
+def list_files_in_bucket_with_prefix(client: storage.Client, prefix, bucket_name=DEFAULT_BUCKET_NAME):
+    bucket = client.get_bucket(bucket_name)
+    return bucket.list_blobs(prefix=prefix)
+
 def list_files_in_bucket_with_suffix(client: storage.Client, suffix, bucket_name=DEFAULT_BUCKET_NAME):
     bucket = client.get_bucket(bucket_name)
     files_with_suffix = []

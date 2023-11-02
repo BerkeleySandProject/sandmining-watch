@@ -52,7 +52,8 @@ https://github.com/azavea/raster-vision/blob/0.20/rastervision_pytorch_learner/r
 """
 
 class BinarySegmentationLearner(ABC):
-    """Abstract training and prediction routines for a model.
+    """
+    Training routines for a model.
 
     Hardcoded: Two loss functions, binary cross entropy (BCE) and DICE loss.
     """
@@ -62,7 +63,6 @@ class BinarySegmentationLearner(ABC):
                  model: nn.Module,
                  train_ds: 'Dataset',
                  valid_ds: 'Dataset',
-                 test_ds: Optional['Dataset'] = None,
                  output_dir: Optional[str] = None,
                  optimizer: Optional['Optimizer'] = None,
                  epoch_scheduler: Optional['_LRScheduler'] = None,
@@ -74,7 +74,6 @@ class BinarySegmentationLearner(ABC):
 
         self.train_ds = train_ds
         self.valid_ds = valid_ds
-        self.test_ds = test_ds
 
         self.model = model
         self.model.to(device=self.device)
@@ -87,7 +86,7 @@ class BinarySegmentationLearner(ABC):
         self.step_scheduler = step_scheduler
 
         self.num_workers = 0 # 0 means no multiprocessing
-        self.train_dl, self.valid_dl, self.test_dl = self.build_dataloaders()
+        self.train_dl, self.valid_dl = self.build_dataloaders()
 
         self.output_dir = output_dir
         if self.output_dir:
@@ -144,17 +143,7 @@ class BinarySegmentationLearner(ABC):
             collate_fn=collate_fn,
             pin_memory=True)
 
-        test_dl = None
-        if self.test_ds is not None and len(self.test_ds) > 0:
-            test_dl = DataLoader(
-                self.test_ds,
-                batch_size=batch_sz,
-                shuffle=True,
-                num_workers=self.num_workers,
-                collate_fn=collate_fn,
-                pin_memory=True)
-
-        return train_dl, val_dl, test_dl
+        return train_dl, val_dl
 
     def log_data_stats(self):
         """Log stats about each DataSet."""
@@ -162,8 +151,6 @@ class BinarySegmentationLearner(ABC):
             log.info(f'train_ds: {len(self.train_ds)} items')
         if self.valid_ds is not None:
             log.info(f'valid_ds: {len(self.valid_ds)} items')
-        if self.test_ds is not None:
-            log.info(f'test_ds: {len(self.test_ds)} items')
 
     def build_step_scheduler(self, start_epoch: int = 0) -> '_LRScheduler':
         """Returns an LR scheduler that changes the LR each step."""
@@ -271,220 +258,6 @@ class BinarySegmentationLearner(ABC):
     def prob_to_pred(self, x, threshold=0.5):
         return (x > threshold).int()
 
-    def to_batch(self, x: Tensor) -> Tensor:
-        """Ensure that image array has batch dimension.
-
-        Args:
-            x: assumed to be either image or batch of images
-
-        Returns:
-            x with extra batch dimension of length 1 if needed
-        """
-        if x.ndim == 3:
-            x = x[None, ...]
-        return x
-
-    def predict(self,
-                x: torch.Tensor,
-                raw_out: bool = False,
-                out_shape: Optional[Tuple[int, int]] = None) -> torch.Tensor:
-        if out_shape:
-            raise ValueError("no support for out_shape")
-
-        x = self.to_batch(x).float()
-        x = self.to_device(x, self.device)
-
-        with torch.inference_mode():
-            out = self.model(x)
-            out = self.post_forward(out)
-            out = torch.sigmoid(out)
-
-        if not raw_out:
-            out = self.prob_to_pred(out)
-        out = self.to_device(out, 'cpu')
-
-        return out
-    
-    def output_to_numpy(self, out: Tensor) -> np.ndarray:
-        """Convert output of model to numpy format.
-
-        Args:
-            out: the output of the model in PyTorch format
-
-        Returns: the output of the model in numpy format
-        """
-        return out.numpy()
-
-    def predict_dataset(self,
-                        dataset: 'Dataset',
-                        return_format: Literal['xyz', 'yz', 'z'] = 'z',
-                        raw_out: bool = True,
-                        numpy_out: bool = False,
-                        predict_kw: dict = {},
-                        dataloader_kw: dict = {},
-                        progress_bar: bool = True,
-                        progress_bar_kw: dict = {}
-                        ) -> Union[Iterator[Any], Iterator[Tuple[Any, ...]]]:
-        """Returns an iterator over predictions on the given dataset.
-
-        Args:
-            dataset (Dataset): The dataset to make predictions on.
-            return_format (Literal['xyz', 'yz', 'z'], optional): Format of the
-                return elements of the returned iterator. Must be one of:
-                'xyz', 'yz', and 'z'. If 'xyz', elements are 3-tuples of x, y,
-                and z. If 'yz', elements are 2-tuples of y and z. If 'z',
-                elements are (non-tuple) values of z. Where x = input image,
-                y = ground truth, and z = prediction. Defaults to 'z'.
-            raw_out (bool, optional): If true, return raw predicted scores.
-                Defaults to True.
-            numpy_out (bool, optional): If True, convert predictions to numpy
-                arrays before returning. Defaults to False.
-            predict_kw (dict): Dict with keywords passed to Learner.predict().
-                Useful if a Learner subclass implements a custom predict()
-                method.
-            dataloader_kw (dict): Dict with keywords passed to the DataLoader
-                constructor.
-            progress_bar (bool, optional): If True, display a progress bar.
-                Since this function returns an iterator, the progress bar won't
-                be visible until the iterator is consumed. Defaults to True.
-            progress_bar_kw (dict): Dict with keywords passed to tqdm.
-
-        Raises:
-            ValueError: If return_format is not one of the allowed values.
-
-        Returns:
-            Union[Iterator[Any], Iterator[Tuple[Any, ...]]]: If return_format
-                is 'z', the returned value is an iterator of whatever type the
-                predictions are. Otherwise, the returned value is an iterator
-                of tuples.
-        """
-
-        if return_format not in {'xyz', 'yz', 'z'}:
-            raise ValueError('return_format must be one of "xyz", "yz", "z".')
-
-        dl_kw = dict(
-            collate_fn=self.get_collate_fn(),
-            batch_size=self.config.batch_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-            pin_memory=True)
-        dl_kw.update(dataloader_kw)
-        dl = DataLoader(dataset, **dl_kw)
-
-        preds = self.predict_dataloader(
-            dl,
-            return_format=return_format,
-            raw_out=raw_out,
-            batched_output=False,
-            predict_kw=predict_kw)
-
-        if numpy_out:
-            if return_format == 'z':
-                preds = (self.output_to_numpy(p) for p in preds)
-            else:
-                # only convert z
-                preds = ((*p[:-1], self.output_to_numpy(p[-1])) for p in preds)
-
-        if progress_bar:
-            pb_kw = dict(desc='Predicting', total=len(dataset))
-            pb_kw.update(progress_bar_kw)
-            preds = tqdm(preds, **pb_kw)
-
-        return preds
-
-    def predict_dataloader(
-            self,
-            dl: DataLoader,
-            batched_output: bool = True,
-            return_format: Literal['xyz', 'yz', 'z'] = 'z',
-            raw_out: bool = True,
-            predict_kw: dict = {}
-    ) -> Union[Iterator[Any], Iterator[Tuple[Any, ...]]]:
-        """Returns an iterator over predictions on the given dataloader.
-
-        Args:
-            dl (DataLoader): The dataloader to make predictions on.
-            batched_output (bool, optional): If True, return batches of
-                x, y, z as defined by the dataloader. If False, unroll the
-                batches into individual items. Defaults to True.
-            return_format (Literal['xyz', 'yz', 'z'], optional): Format of the
-                return elements of the returned iterator. Must be one of:
-                'xyz', 'yz', and 'z'. If 'xyz', elements are 3-tuples of x, y,
-                and z. If 'yz', elements are 2-tuples of y and z. If 'z',
-                elements are (non-tuple) values of z. Where x = input image,
-                y = ground truth, and z = prediction. Defaults to 'z'.
-            raw_out (bool, optional): If true, return raw predicted scores.
-                Defaults to True.
-            predict_kw (dict): Dict with keywords passed to Learner.predict().
-                Useful if a Learner subclass implements a custom predict()
-                method.
-
-        Raises:
-            ValueError: If return_format is not one of the allowed values.
-
-        Returns:
-            Union[Iterator[Any], Iterator[Tuple[Any, ...]]]: If return_format
-                is 'z', the returned value is an iterator of whatever type the
-                predictions are. Otherwise, the returned value is an iterator
-                of tuples.
-        """
-
-        if return_format not in {'xyz', 'yz', 'z'}:
-            raise ValueError('return_format must be one of "xyz", "yz", "z".')
-
-        preds = self._predict_dataloader(
-            dl,
-            raw_out=raw_out,
-            batched_output=batched_output,
-            predict_kw=predict_kw)
-
-        if return_format == 'yz':
-            preds = ((y, z) for _, y, z in preds)
-        elif return_format == 'z':
-            preds = (z for _, _, z in preds)
-
-        return preds
-
-    def _predict_dataloader(
-            self,
-            dl: DataLoader,
-            raw_out: bool = True,
-            batched_output: bool = True,
-            predict_kw: dict = {}) -> Iterator[Tuple[Tensor, Any, Any]]:
-        """Returns an iterator over predictions on the given dataloader.
-
-        Args:
-            dl (DataLoader): The dataloader to make predictions on.
-            batched_output (bool, optional): If True, return batches of
-                x, y, z as defined by the dataloader. If False, unroll the
-                batches into individual items. Defaults to True.
-            raw_out (bool, optional): If true, return raw predicted scores.
-                Defaults to True.
-            predict_kw (dict): Dict with keywords passed to Learner.predict().
-                Useful if a Learner subclass implements a custom predict()
-                method.
-
-        Raises:
-            ValueError: If return_format is not one of the allowed values.
-
-        Yields:
-            Iterator[Tuple[Tensor, Any, Any]]: 3-tuples of x, y, and z, which
-                might or might not be batched depending on the batched_output
-                argument.
-        """
-        self.model.eval()
-
-        for x, y in dl:
-            x = self.to_device(x, self.device)
-            z = self.predict(x, raw_out=raw_out, **predict_kw)
-            x = self.to_device(x, 'cpu')
-            y = self.to_device(y, 'cpu') if y is not None else y
-            z = self.to_device(z, 'cpu')
-            if batched_output:
-                yield x, y, z
-            else:
-                for _x, _y, _z in zip(x, y, z):
-                    yield _x, _y, _z
 
     def plot_dataloader(self,
                         dl: DataLoader,
@@ -504,7 +277,7 @@ class BinarySegmentationLearner(ABC):
             log.info('Plotting sample training batch.')
             self.plot_dataloader(
                 self.train_dl,
-                output_path=join(self.output_dir_local,
+                output_path=join(self.output_dir,
                                  'dataloaders/train.png'),
                 batch_limit=batch_limit,
                 show=show)
@@ -512,7 +285,7 @@ class BinarySegmentationLearner(ABC):
             log.info('Plotting sample validation batch.')
             self.plot_dataloader(
                 self.valid_dl,
-                output_path=join(self.output_dir_local,
+                output_path=join(self.output_dir,
                                  'dataloaders/valid.png'),
                 batch_limit=batch_limit,
                 show=show)
@@ -520,7 +293,7 @@ class BinarySegmentationLearner(ABC):
             log.info('Plotting sample test batch.')
             self.plot_dataloader(
                 self.test_dl,
-                output_path=join(self.output_dir_local,
+                output_path=join(self.output_dir,
                                  'dataloaders/test.png'),
                 batch_limit=batch_limit,
                 show=show)
@@ -686,35 +459,11 @@ class BinarySegmentationLearner(ABC):
                 continue
         return metrics_to_log
     
-    def predict_site(
-        self,
-        ds: SemanticSegmentationSlidingWindowGeoDataset,
-        crop_sz = None
-    ) -> SemanticSegmentationSmoothLabels:
-        predictions = self.predict_dataset(
-            ds,
-            numpy_out=True,
-            progress_bar=False,
-        )
-        return SemanticSegmentationLabels.from_predictions(
-            ds.windows,
-            predictions,
-            smooth=True,
-            extent=ds.scene.extent,
-            num_classes=1,
-            crop_sz=crop_sz,
-        )
-    
-    def predict_mine_probability_for_site(
-        self,
-        ds: SemanticSegmentationSlidingWindowGeoDataset,
-        crop_sz = None
-    ):
-        predictions = self.predict_site(ds, crop_sz)
-        scores = predictions.get_score_arr(predictions.extent)
-        return scores[0]
-    
     def evaluate_and_log_to_wandb(self, datasets):
+        # TODO refactoring
+        # dataset evaluation
+        # allow evaluation without logging to W&B
+        
         """
         Runs inference on datasets.
         Logs to W&B:
@@ -788,3 +537,306 @@ def get_schedulers_last_lr(scheduler: '_LRScheduler'):
         return last_lr[0]
     else:
         raise ValueError("Unexpected scheduler.get_last_lr()")
+
+
+
+class BinarySegmentationPredictor(ABC):
+    """
+    Prediction routines for a model.
+    """
+
+    def __init__(self,
+                 config: SupervisedTrainingConfig,
+                 model: nn.Module,
+                 weights_dir: str,
+                 ):
+        self.config = config
+        self.device = torch.device('cuda'
+                                   if torch.cuda.is_available() else 'cpu')
+        
+        self.model = model
+        self.model.to(device=self.device)
+
+        weights_path = join(weights_dir, 'last-model.pth')
+        self.model.load_state_dict(
+            torch.load(weights_path, map_location=self.device)
+        )
+
+        self.class_names = CLASS_CONFIG.names
+        self.num_workers = 0 # 0 means no multiprocessing
+
+    def predict_dataset(self,
+                        dataset: 'Dataset',
+                        return_format: Literal['xyz', 'yz', 'z'] = 'z',
+                        raw_out: bool = True,
+                        numpy_out: bool = False,
+                        predict_kw: dict = {},
+                        dataloader_kw: dict = {},
+                        progress_bar: bool = True,
+                        progress_bar_kw: dict = {}
+                        ) -> Union[Iterator[Any], Iterator[Tuple[Any, ...]]]:
+        """Returns an iterator over predictions on the given dataset.
+
+        Args:
+            dataset (Dataset): The dataset to make predictions on.
+            return_format (Literal['xyz', 'yz', 'z'], optional): Format of the
+                return elements of the returned iterator. Must be one of:
+                'xyz', 'yz', and 'z'. If 'xyz', elements are 3-tuples of x, y,
+                and z. If 'yz', elements are 2-tuples of y and z. If 'z',
+                elements are (non-tuple) values of z. Where x = input image,
+                y = ground truth, and z = prediction. Defaults to 'z'.
+            raw_out (bool, optional): If true, return raw predicted scores.
+                Defaults to True.
+            numpy_out (bool, optional): If True, convert predictions to numpy
+                arrays before returning. Defaults to False.
+            predict_kw (dict): Dict with keywords passed to Learner.predict().
+                Useful if a Learner subclass implements a custom predict()
+                method.
+            dataloader_kw (dict): Dict with keywords passed to the DataLoader
+                constructor.
+            progress_bar (bool, optional): If True, display a progress bar.
+                Since this function returns an iterator, the progress bar won't
+                be visible until the iterator is consumed. Defaults to True.
+            progress_bar_kw (dict): Dict with keywords passed to tqdm.
+
+        Raises:
+            ValueError: If return_format is not one of the allowed values.
+
+        Returns:
+            Union[Iterator[Any], Iterator[Tuple[Any, ...]]]: If return_format
+                is 'z', the returned value is an iterator of whatever type the
+                predictions are. Otherwise, the returned value is an iterator
+                of tuples.
+        """
+
+        if return_format not in {'xyz', 'yz', 'z'}:
+            raise ValueError('return_format must be one of "xyz", "yz", "z".')
+
+        dl_kw = dict(
+            collate_fn=None,
+            batch_size=self.config.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+            pin_memory=True)
+        dl_kw.update(dataloader_kw)
+        dl = DataLoader(dataset, **dl_kw)
+
+        preds = self.predict_dataloader(
+            dl,
+            return_format=return_format,
+            raw_out=raw_out,
+            batched_output=False,
+            predict_kw=predict_kw)
+
+        if numpy_out:
+            if return_format == 'z':
+                preds = (self.output_to_numpy(p) for p in preds)
+            else:
+                # only convert z
+                preds = ((*p[:-1], self.output_to_numpy(p[-1])) for p in preds)
+
+        if progress_bar:
+            pb_kw = dict(desc='Predicting', total=len(dataset))
+            pb_kw.update(progress_bar_kw)
+            preds = tqdm(preds, **pb_kw)
+
+        return preds
+
+    def predict(self,
+                x: torch.Tensor,
+                raw_out: bool = False,
+                out_shape: Optional[Tuple[int, int]] = None) -> torch.Tensor:
+        """
+        asd
+        """
+        if out_shape:
+            raise ValueError("no support for out_shape")
+
+        x = self.to_batch(x).float()
+        x = self.to_device(x, self.device)
+
+        with torch.inference_mode():
+            out = self.model(x)
+            out = self.post_forward(out)
+            out = torch.sigmoid(out)
+
+        if not raw_out:
+            out = self.prob_to_pred(out)
+        out = self.to_device(out, 'cpu')
+
+        return out
+    
+    def predict_dataloader(
+            self,
+            dl: DataLoader,
+            batched_output: bool = True,
+            return_format: Literal['xyz', 'yz', 'z'] = 'z',
+            raw_out: bool = True,
+            predict_kw: dict = {}
+    ) -> Union[Iterator[Any], Iterator[Tuple[Any, ...]]]:
+        """
+        Returns an iterator over predictions on the given dataloader.
+
+        Args:
+            dl (DataLoader): The dataloader to make predictions on.
+            batched_output (bool, optional): If True, return batches of
+                x, y, z as defined by the dataloader. If False, unroll the
+                batches into individual items. Defaults to True.
+            return_format (Literal['xyz', 'yz', 'z'], optional): Format of the
+                return elements of the returned iterator. Must be one of:
+                'xyz', 'yz', and 'z'. If 'xyz', elements are 3-tuples of x, y,
+                and z. If 'yz', elements are 2-tuples of y and z. If 'z',
+                elements are (non-tuple) values of z. Where x = input image,
+                y = ground truth, and z = prediction. Defaults to 'z'.
+            raw_out (bool, optional): If true, return raw predicted scores.
+                Defaults to True.
+            predict_kw (dict): Dict with keywords passed to Learner.predict().
+                Useful if a Learner subclass implements a custom predict()
+                method.
+
+        Raises:
+            ValueError: If return_format is not one of the allowed values.
+
+        Returns:
+            Union[Iterator[Any], Iterator[Tuple[Any, ...]]]: If return_format
+                is 'z', the returned value is an iterator of whatever type the
+                predictions are. Otherwise, the returned value is an iterator
+                of tuples.
+        """
+        if return_format not in {'xyz', 'yz', 'z'}:
+            raise ValueError('return_format must be one of "xyz", "yz", "z".')
+
+        preds = self._predict_dataloader(
+            dl,
+            raw_out=raw_out,
+            batched_output=batched_output,
+            predict_kw=predict_kw)
+
+        if return_format == 'yz':
+            preds = ((y, z) for _, y, z in preds)
+        elif return_format == 'z':
+            preds = (z for _, _, z in preds)
+
+        return preds
+
+    def _predict_dataloader(
+            self,
+            dl: DataLoader,
+            raw_out: bool = True,
+            batched_output: bool = True,
+            predict_kw: dict = {}) -> Iterator[Tuple[Tensor, Any, Any]]:
+        """Returns an iterator over predictions on the given dataloader.
+
+        Args:
+            dl (DataLoader): The dataloader to make predictions on.
+            batched_output (bool, optional): If True, return batches of
+                x, y, z as defined by the dataloader. If False, unroll the
+                batches into individual items. Defaults to True.
+            raw_out (bool, optional): If true, return raw predicted scores.
+                Defaults to True.
+            predict_kw (dict): Dict with keywords passed to Learner.predict().
+                Useful if a Learner subclass implements a custom predict()
+                method.
+
+        Raises:
+            ValueError: If return_format is not one of the allowed values.
+
+        Yields:
+            Iterator[Tuple[Tensor, Any, Any]]: 3-tuples of x, y, and z, which
+                might or might not be batched depending on the batched_output
+                argument.
+        """
+        self.model.eval()
+
+        for x, y in dl:
+            x = self.to_device(x, self.device)
+            z = self.predict(x, raw_out=raw_out, **predict_kw)
+            x = self.to_device(x, 'cpu')
+            y = self.to_device(y, 'cpu') if y is not None else y
+            z = self.to_device(z, 'cpu')
+            if batched_output:
+                yield x, y, z
+            else:
+                for _x, _y, _z in zip(x, y, z):
+                    yield _x, _y, _z
+
+
+    def output_to_numpy(self, out: Tensor) -> np.ndarray:
+        """Convert output of model to numpy format.
+
+        Args:
+            out: the output of the model in PyTorch format
+
+        Returns: the output of the model in numpy format
+        """
+        return out.numpy()
+
+    def to_batch(self, x: Tensor) -> Tensor:
+        """Ensure that image array has batch dimension.
+
+        Args:
+            x: assumed to be either image or batch of images
+
+        Returns:
+            x with extra batch dimension of length 1 if needed
+        """
+        if x.ndim == 3:
+            x = x[None, ...]
+        return x
+    
+    def to_device(self, x: Any, device: str) -> Any:
+        """Load Tensors onto a device.
+
+        Args:
+            x: some object with Tensors in it
+            device: 'cpu' or 'cuda'
+
+        Returns:
+            x but with any Tensors in it on the device
+        """
+        if isinstance(x, list):
+            return [_x.to(device) if _x is not None else _x for _x in x]
+        else:
+            return x.to(device)
+        
+    def post_forward(self, x: Any) -> Any:
+        """Post process output of call to model().
+        Useful for when predictions are inside a structure returned by model().
+        """
+        if isinstance(x, dict):
+            x = x['out']
+        # Squeeze to remove the n_classes dimension (since it is size 1)
+        # From batch_size x n_classes x width x height
+        # To batch_size x width x height
+        # Do this to work with PyTorch's BCEWithLogitsLoss
+        return x.squeeze()
+
+
+    def predict_site(
+        self,
+        ds: SemanticSegmentationSlidingWindowGeoDataset,
+        crop_sz = None
+    ) -> SemanticSegmentationSmoothLabels:
+        predictions = self.predict_dataset(
+            ds,
+            numpy_out=True,
+            progress_bar=False,
+        )
+        return SemanticSegmentationLabels.from_predictions(
+            ds.windows,
+            predictions,
+            smooth=True,
+            extent=ds.scene.extent,
+            num_classes=1,
+            crop_sz=crop_sz,
+        )
+
+    def predict_mine_probability_for_site(
+        self,
+        ds: SemanticSegmentationSlidingWindowGeoDataset,
+        crop_sz = None
+    ):
+        predictions = self.predict_site(ds, crop_sz)
+        scores = predictions.get_score_arr(predictions.extent)
+        return scores[0]
+    
