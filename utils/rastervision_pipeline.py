@@ -1,4 +1,5 @@
-from typing import List
+from typing import Any, List, Tuple, Optional, Union
+import albumentations as A
 import numpy as np
 from math import ceil
 from rastervision.core.box import Box
@@ -8,9 +9,15 @@ from rastervision.core.data import (
     SemanticSegmentationLabelSource, VectorSource
 )
 from rastervision.core.data.raster_transformer.nan_transformer import NanTransformer
-
+from rastervision.core.data import LabelSource, LabelStore
 from rastervision.core.data.raster_source import RasterSource
+
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset
+from rastervision.pytorch_learner import RandomWindowGeoDataset, SlidingWindowGeoDataset
+from rastervision.pytorch_learner.dataset.transform import TransformType
+from rastervision.pytorch_learner.learner_config import NonNegInt, PosInt
+
+import torch
 
 
 from project_config import CLASS_NAME, CLASS_CONFIG
@@ -140,12 +147,21 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
         label_raster_source, class_config=CLASS_CONFIG
     )
 
-    scene = Scene(id=scene_id, raster_source=img_raster_source, label_source=label_source)
+    confidence_source = SemanticSegmentationLabelSource(
+        RasterizedConfidences(
+            vector_source,
+            background_class_id=CLASS_CONFIG.null_class_id,
+            extent=img_raster_source.extent),
+        class_config=CLASS_CONFIG
+    )
+
+    # scene = Scene(id=scene_id, raster_source=img_raster_source, label_source=label_source)
+    scene = SceneWithConfidences(id=scene_id, raster_source=img_raster_source, label_source=label_source, confidence_source=confidence_source)
     return scene
 
 def scene_to_validation_ds(config, scene: Scene):
     # No augementation and windows don't overlap. Use for validation during training time.
-    return SemanticSegmentationSlidingWindowGeoDataset(
+    return SemanticSegmentationWithConfidenceSlidingWindowGeoDataset(
         scene,
         size=config.tile_size,
         stride=config.tile_size,
@@ -158,7 +174,7 @@ def scene_to_validation_ds(config, scene: Scene):
 def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene):
     n_pixels_in_scene = scene.raster_source.shape[0] * scene.raster_source.shape[1]
     n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
-    return SemanticSegmentationRandomWindowGeoDataset(
+    return SemanticSegmentationWithConfidenceRandomWindowGeoDataset(
         scene,
         out_size=(config.tile_size, config.tile_size),
         # Setting size_lims=(size,size+1) seems weird, but it actually leads to all windows having the same size
@@ -273,9 +289,162 @@ class RasterizedSourceProbability(RasterizedSource):
             background_class_id=self.background_class_id,
             extent=self.extent,
             all_touched=self.all_touched)
-        # Add third singleton dim since rasters must have >=1 channel.
-        # chip = np.expand_dims(chip, 2)
-        # print('Chip shape: ', chip.shape)
-        # return chip
         return np.expand_dims(chip, 2)
 
+class RasterizedConfidences(RasterizedSource):
+    def __init__(self, vector_source: VectorSource, 
+                 background_class_id: int, 
+                 extent: Box, all_touched: bool = False, 
+                 raster_transformers: List[RasterTransformer] = [],
+                 other_class_confidence: float = 1.):
+        super().__init__(vector_source, background_class_id, extent, all_touched, raster_transformers)
+        self.other_class_confidence = other_class_confidence
+
+    def _get_chip(self, window):
+        """Return the chip located in the window.
+
+        Polygons falling within the window are rasterized using the class_id, and
+        the background is filled with background_class_id. Also, any pixels in the
+        window outside the extent are zero, which is the don't-care class for
+        segmentation.
+
+        Args:
+            window: Box
+
+        Returns:
+            [height, width, channels] numpy array
+        """
+        # log.debug(f'Rasterizing window: {window}')
+        chip = geoms_to_raster_probability(
+            self.df,
+            window,
+            background_class_id=self.background_class_id,
+            extent=self.extent,
+            all_touched=self.all_touched)
+        chip[chip == 0] = self.other_class_confidence
+        return np.expand_dims(chip, 2)
+    
+class SceneWithConfidences(Scene):
+    def __init__(self,
+                 id: str,
+                 raster_source: 'RasterSource',
+                 label_source: Optional['LabelSource'] = None,
+                 confidence_source: Optional['LabelSource'] = None,
+                 label_store: Optional['LabelStore'] = None,
+                 aoi_polygons: Optional[list] = None):
+        super().__init__(id, raster_source, label_source, label_store, aoi_polygons)
+        self.confidence_source = confidence_source
+
+    def __getitem__(self, key: Any) -> Tuple[Any, Any]:
+        x, y = super().__getitem__(key)
+        if self.confidence_source is not None:
+            confidence = self.confidence_source[key]
+        else: 
+            confidence = None
+        return x, y, confidence
+    
+def semanticSegmentationWithConfidenceTransformer(
+        inp: Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]],
+        transform: Optional[A.BasicTransform]):
+    x, y, confidence = inp
+    assert not (y is None and confidence is None), "Confidence cannot be None when y is None"
+    x = np.array(x)
+    if transform is not None:
+        if y is None and confidence is None:
+            x = transform(image=x)['image']
+        elif y is not None and confidence is None:
+            y = np.array(y)
+            out = transform(image=x, mask=y)
+            x, y = out['image'], out['mask']
+            y = y.astype(int)
+        else:
+            y, confidence = np.array(y), np.array(confidence)
+            out = transform(image=x, mask=y, confidence=confidence)
+            x, y, confidence = out["image"], out["mask"], out["confidence"]
+            y = y.astype(int)
+    return x, y, confidence
+
+def getDataSetItem(dataset, key):
+    val = dataset.orig_dataset[key]
+    try:
+        x, y, confidence = dataset.transform(val)
+    except Exception as exc:
+        raise exc
+
+    if dataset.normalize and np.issubdtype(x.dtype, np.unsignedinteger):
+        max_val = np.iinfo(x.dtype).max
+        x = x.astype(float) / max_val
+
+    if dataset.to_pytorch:
+        x = torch.from_numpy(x).permute(2, 0, 1).float()
+        if y is not None:
+            y = torch.from_numpy(y)
+        if confidence is not None:
+            confidence = torch.from_numpy(confidence)
+
+    if y is None:
+        y = torch.tensor(np.nan)
+    if confidence is None:
+        confidence = torch.tensor(np.nan)
+
+    return x, y, confidence
+
+class SemanticSegmentationWithConfidenceRandomWindowGeoDataset(RandomWindowGeoDataset):
+    def __init__(self, 
+                 scene: Scene,
+                 out_size: Optional[Union[PosInt, Tuple[PosInt, PosInt]]],
+                 size_lims: Optional[Tuple[PosInt, PosInt]] = None,
+                 h_lims: Optional[Tuple[PosInt, PosInt]] = None,
+                 w_lims: Optional[Tuple[PosInt, PosInt]] = None,
+                 padding: Optional[Union[NonNegInt, Tuple[NonNegInt,
+                                                          NonNegInt]]] = None,
+                 max_windows: Optional[NonNegInt] = None,
+                 max_sample_attempts: PosInt = 100,
+                 return_window: bool = False,
+                 efficient_aoi_sampling: bool = True,
+                 transform: Optional[A.BasicTransform] = None,
+                 normalize: bool = True,
+                 to_pytorch: bool = True):
+        super().__init__(scene, out_size, size_lims, h_lims, w_lims, padding, 
+                         max_windows, max_sample_attempts, return_window, 
+                         efficient_aoi_sampling, transform, TransformType.noop, 
+                         normalize, to_pytorch)
+        self.transform = lambda inp: semanticSegmentationWithConfidenceTransformer(inp, transform)
+        
+    def __getitem__(self, idx: int):
+        if idx >= len(self):
+            raise StopIteration()
+        window = self.sample_window()
+        if self.return_window:
+            return (getDataSetItem(self, window), window)
+        return getDataSetItem(self, window)
+    
+class SemanticSegmentationWithConfidenceSlidingWindowGeoDataset(SlidingWindowGeoDataset):
+    def __init__(self, 
+                 scene: Scene,
+                 out_size: Optional[Union[PosInt, Tuple[PosInt, PosInt]]],
+                 size_lims: Optional[Tuple[PosInt, PosInt]] = None,
+                 h_lims: Optional[Tuple[PosInt, PosInt]] = None,
+                 w_lims: Optional[Tuple[PosInt, PosInt]] = None,
+                 padding: Optional[Union[NonNegInt, Tuple[NonNegInt,
+                                                          NonNegInt]]] = None,
+                 max_windows: Optional[NonNegInt] = None,
+                 max_sample_attempts: PosInt = 100,
+                 return_window: bool = False,
+                 efficient_aoi_sampling: bool = True,
+                 transform: Optional[A.BasicTransform] = None,
+                 normalize: bool = True,
+                 to_pytorch: bool = True):
+        super().__init__(scene, out_size, size_lims, h_lims, w_lims, padding, 
+                         max_windows, max_sample_attempts, return_window, 
+                         efficient_aoi_sampling, transform, TransformType.noop, 
+                         normalize, to_pytorch)
+        self.transform = lambda inp: semanticSegmentationWithConfidenceTransformer(inp, transform)
+        
+    def __getitem__(self, idx: int):
+        if idx >= len(self):
+            raise StopIteration()
+        window = self.sample_window()
+        if self.return_window:
+            return (getDataSetItem(self, window), window)
+        return getDataSetItem(self, window)

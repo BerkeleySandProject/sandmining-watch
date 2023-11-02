@@ -47,7 +47,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         num_samples = 0
         outputs = []
         with tqdm(self.train_dl, desc='Training') as bar:
-            for batch_ind, (x, y) in enumerate(bar):
+            for batch_ind, (x, y, confidences) in enumerate(bar):
                 x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                 y = self.to_device(y.float(), self.device)
@@ -91,7 +91,7 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
         outputs = []
         with torch.inference_mode():
             with tqdm(dl, desc='Validating') as bar:
-                for batch_ind, (x, y) in enumerate(bar):
+                for batch_ind, (x, y, confidence) in enumerate(bar):
                     x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                     y = self.to_device(y.float(), self.device)
@@ -132,12 +132,8 @@ class CustomSemanticSegmentationLearner(SemanticSegmentationLearner):
 
         return out
 
-    # def prob_to_pred(self, x, threshold=0.5):
-    #     return (x > threshold).int()
-    
-    def prob_to_pred(self, x):
-        boundaries = torch.tensor([0, 0.125, 0.375, 0.625, 0.875, 1]).to(self.device)
-        return torch.searchsorted(boundaries, x)
+    def prob_to_pred(self, x, threshold=0.5):
+        return (x > threshold).int()
 
     def on_epoch_end(self, curr_epoch, metrics):
         # This funtion extends the regular on_epoch_end() behaviour.
