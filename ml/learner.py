@@ -228,7 +228,7 @@ class BinarySegmentationLearner(ABC):
         conf_mat = compute_conf_mat(
             out_classes,
             ground_truths,
-            num_labels=2, # we have two classes
+            num_labels=5, # we have two classes
         )
         conf_mat_metrics = compute_conf_mat_metrics(conf_mat, self.class_names)
 
@@ -257,7 +257,6 @@ class BinarySegmentationLearner(ABC):
 
     def prob_to_pred(self, x, threshold=0.5):
         return (x > threshold).int()
-
 
     def plot_dataloader(self,
                         dl: DataLoader,
@@ -332,7 +331,7 @@ class BinarySegmentationLearner(ABC):
         num_samples = 0
         outputs = []
         with tqdm(self.train_dl, desc='Training') as bar:
-            for batch_ind, (x, y) in enumerate(bar):
+            for batch_ind, (x, y, confidences) in enumerate(bar):
                 x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                 y = self.to_device(y.float(), self.device)
@@ -369,7 +368,7 @@ class BinarySegmentationLearner(ABC):
         outputs = []
         with torch.inference_mode():
             with tqdm(dl, desc='Validating') as bar:
-                for batch_ind, (x, y) in enumerate(bar):
+                for batch_ind, (x, y, confidences) in enumerate(bar):
                     x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                     y = self.to_device(y.float(), self.device)

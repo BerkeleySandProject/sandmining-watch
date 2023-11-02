@@ -17,6 +17,8 @@ from rastervision.pytorch_learner import RandomWindowGeoDataset, SlidingWindowGe
 from rastervision.pytorch_learner.dataset.transform import TransformType
 from rastervision.pytorch_learner.learner_config import NonNegInt, PosInt
 
+from shapely.geometry.base import BaseGeometry
+
 import torch
 
 
@@ -138,20 +140,20 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
                 ClassInferenceTransformer(default_class_id=CLASS_CONFIG.get_class_id(CLASS_NAME))
             ]
         )
-
-    # label_raster_source = RasterizedSource(
-    #     vector_source,
-    #     background_class_id=CLASS_CONFIG.null_class_id,
-    #     extent=img_raster_source.extent
-    # )
-
         label_raster_source = RasterizedSourceProbability(
             vector_source,
             background_class_id=CLASS_CONFIG.null_class_id,
-            extent=img_raster_source.bbox
+            bbox=img_raster_source.bbox
         )
         label_source = SemanticSegmentationLabelSource(
             label_raster_source, class_config=CLASS_CONFIG
+        )
+        confidence_source = SemanticSegmentationLabelSource(
+            RasterizedConfidences(
+                vector_source,
+                background_class_id=CLASS_CONFIG.null_class_id,
+                bbox=img_raster_source.extent),
+        class_config=CLASS_CONFIG
         )
     else:
         label_source = None
@@ -167,7 +169,10 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
         scene = Scene(id=scene_id, raster_source=img_raster_source, label_source=label_source, aoi_polygons=aoi_polygons)    
     
     else:
-        scene = Scene(id=scene_id, raster_source=img_raster_source, label_source=label_source)
+        scene = SceneWithConfidences(id=scene_id, 
+                        raster_source=img_raster_source, 
+                        label_source=label_source, 
+                        confidence_source=confidence_source)
 
     return scene
 
@@ -210,7 +215,7 @@ def scene_to_validation_ds(config, scene: Scene, stride=None):
         stride = config.tile_size
 
     # No augementation and windows don't overlap. Use for validation during training time.
-    ds = SemanticSegmentationWithConfidenceSlidingWindowGeoDataset(
+    ds = SemanticSegmentationSlidingWindowGeoDataset(
         scene,
         size=config.tile_size,
         stride=stride,
@@ -276,8 +281,9 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     for aoi in scene.aoi_polygons:
         aoi_area += aoi.area
 
-    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 2    
+    # n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 2    
     # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
+    n_windows = 10
     ds = SemanticSegmentationWithConfidenceRandomWindowGeoDataset(
         scene,
         out_size=(config.tile_size, config.tile_size),
@@ -291,7 +297,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     )
     #override the sample_window method and within_aoi method
     ds.aoi_centroids = aoi_centroids
-    ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
+    ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationWithConfidenceRandomWindowGeoDataset)
     return ds
 
 #Override RasterizedSource to use probability instead of integer class_ids
@@ -369,13 +375,15 @@ def geoms_to_raster_probability(df: gpd.GeoDataFrame, window: 'Box',
 
 
 class RasterizedSourceProbability(RasterizedSource):
-    def __init__(self, vector_source: VectorSource, 
-                 background_class_id: int, 
-                 extent: Box, all_touched: bool = False, 
-                 raster_transformers: List[RasterTransformer] = []):
-        super().__init__(vector_source, background_class_id, extent, all_touched, raster_transformers)
+    def __init__(self,
+                 vector_source: 'VectorSource',
+                 background_class_id: int,
+                 bbox: Optional['Box'] = None,
+                 all_touched: bool = False,
+                 raster_transformers: List['RasterTransformer'] = []):
+        super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
 
-    def _get_chip(self, window):
+    def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
         """Return the chip located in the window.
 
         Polygons falling within the window are rasterized using the class_id, and
@@ -398,16 +406,18 @@ class RasterizedSourceProbability(RasterizedSource):
             all_touched=self.all_touched)
         return np.expand_dims(chip, 2)
 
-class RasterizedConfidences(RasterizedSource):
-    def __init__(self, vector_source: VectorSource, 
-                 background_class_id: int, 
-                 extent: Box, all_touched: bool = False, 
-                 raster_transformers: List[RasterTransformer] = [],
+class RasterizedConfidences(RasterizedSourceProbability):
+    def __init__(self,
+                 vector_source: 'VectorSource',
+                 background_class_id: int,
+                 bbox: Optional['Box'] = None,
+                 all_touched: bool = False,
+                 raster_transformers: List['RasterTransformer'] = [],
                  other_class_confidence: float = 1.):
-        super().__init__(vector_source, background_class_id, extent, all_touched, raster_transformers)
+        super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
         self.other_class_confidence = other_class_confidence
 
-    def _get_chip(self, window):
+    def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
         """Return the chip located in the window.
 
         Polygons falling within the window are rasterized using the class_id, and
@@ -430,7 +440,7 @@ class RasterizedConfidences(RasterizedSource):
             all_touched=self.all_touched)
         chip[chip == 0] = self.other_class_confidence
         return np.expand_dims(chip, 2)
-    
+
 class SceneWithConfidences(Scene):
     def __init__(self,
                  id: str,
@@ -438,7 +448,7 @@ class SceneWithConfidences(Scene):
                  label_source: Optional['LabelSource'] = None,
                  confidence_source: Optional['LabelSource'] = None,
                  label_store: Optional['LabelStore'] = None,
-                 aoi_polygons: Optional[list] = None):
+                 aoi_polygons: Optional[List['BaseGeometry']] = None):
         super().__init__(id, raster_source, label_source, label_store, aoi_polygons)
         self.confidence_source = confidence_source
 

@@ -70,6 +70,6 @@ BUCKET_NAME = "sand_mining_test"
 WANDB_PROJECT_NAME = "sandmine_detector"
 
 #To use river AOIs set this to TRUE
-USE_RIVER_AOIS = True
+USE_RIVER_AOIS = False
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'
