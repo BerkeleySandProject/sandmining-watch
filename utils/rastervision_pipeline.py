@@ -214,17 +214,13 @@ from rastervision.core.box import Box
 from typing import List
 from shapely.geometry import Polygon
 
-def custom_within_aoi(window: 'Box', aoi_polygons: List[Polygon], aoi_centroids) -> bool:
-    """Check if window is within a list of AOI polygons."""
+def centroid_within_polygons(window: 'Box', aoi_polygons: List[Polygon]) -> bool:
+    """Check if window's centroid is within a list of AOI polygons."""
 
     w = window.to_shapely()
     for polygon in aoi_polygons:
-        if aoi_centroids:
-            if w.centroid.within(polygon):
-                return True
-        else:
-            if w.within(polygon):
-                return True
+        if w.centroid.within(polygon):
+            return True
     return False
 
 def custom_sample_window(self) -> Box:
@@ -245,7 +241,7 @@ def custom_sample_window(self) -> Box:
 
         for _ in range(self.max_sample_attempts):
             window = self._sample_window()
-            if custom_within_aoi(window, self.aoi_polygons, self.aoi_centroids):
+            if centroid_within_polygons(window, self.aoi_polygons):
                 return window
         raise StopIteration('Failed to find random window within scene AOI.')
 
@@ -272,10 +268,15 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
         padding=None,
         max_windows=n_windows,
         transform=DEFAULT_AUGMENTATIONS,
-        normalize=True, # If unsigned integer, bring to range [0, 1]
+        normalize=True, # If unsigned integer, bring to range [0, 1],
+        # When using our custom sampling stragety that checks for window's centroids,
+        # efficient_aoi_sampling needs to be turned off.
+        efficient_aoi_sampling=(not aoi_centroids),
     )
 
-    #override the sample_window method and within_aoi method
-    ds.aoi_centroids = aoi_centroids
-    ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
+    if aoi_centroids:
+        #override the sample_window method and within_aoi method
+        ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
+        
     return ds
+    
