@@ -11,6 +11,14 @@ from rastervision.pytorch_learner import SemanticSegmentationVisualizer
 from project_config import CLASS_CONFIG, RGB_BANDS
 from skimage import exposure
 from matplotlib.colors import ListedColormap
+from typing import List
+from rastervision.pytorch_learner.dataset import GeoDataset
+
+from matplotlib import pyplot as plt
+from matplotlib import patches as mpatches
+from shapely.geometry import Polygon
+import numpy as np
+from skimage import exposure
 
 class Visualizer():
     """
@@ -33,9 +41,14 @@ class Visualizer():
             return rgb_band_idx
         else:
             return [s2_channels.index(idx) for idx in rgb_band_idx]
-        
+    
+
     def rgb_from_bandstack(self, image):
-        return image[:,:,self.rgb_channels]
+        # apply automatic contrast selection
+        p2, p98 = np.percentile(image[:,:,self.rgb_channels], (2, 98))
+        image_rescale = exposure.rescale_intensity(image[:,:,self.rgb_channels], in_range=(p2, p98))
+        return np.clip(image_rescale, 0, 1.)
+
 
     def show_windows(self, img, windows, title=''):
         rgb_img = self.rgb_from_bandstack(img)
@@ -45,12 +58,9 @@ class Visualizer():
         ax.axis('off')
         # draw windows on top of the image
         for w in windows:
-            p = patches.Polygon(w.to_points(), color='r', linewidth=1, fill=False)
+            p = patches.Polygon(w.to_points(), color='r', linewidth=1.5, fill=False)
             ax.add_patch(p)
-        # draw second and second last window again in a different color
-        # for w in [windows[1], windows[-2]]:
-        #     p = patches.Polygon(w.to_points(), color='b', linewidth=1, fill=False)
-        #     ax.add_patch(p)
+
         ax.autoscale()
         ax.set_title(title)
         plt.show()
@@ -197,3 +207,63 @@ def show_image_in_dataset(ds, class_config, display_groups, idx=None):
     x = x.unsqueeze(0)
     y = y.unsqueeze(0)
     visualizer.plot_batch(x, y, show=True)
+
+
+
+
+def display_aoi(raster_source, aoi_polygons):
+    img = raster_source[:, :]
+
+    fig, ax = plt.subplots(1, 1, squeeze=True, figsize=(8, 8))
+    ax.imshow(img)
+
+    for aoi in aoi_polygons:
+        p = mpatches.Polygon(
+            np.array(aoi.exterior.coords), color='turquoise', linewidth=1, fill=False)
+        ax.add_patch(p)
+
+    plt.show()
+
+def show_windows(img, windows, title='', aoi_polygons=None):
+    from matplotlib import pyplot as plt
+    import matplotlib.patches as patches
+
+    fig, ax = plt.subplots(1, 1, squeeze=True, figsize=(8, 8))
+    ax.imshow(img)
+    ax.axis('off')
+    # draw windows on top of the image
+    for w in windows:
+        p = patches.Polygon(w.to_points(), color='y', linewidth=0.8, fill=False)
+        ax.add_patch(p)
+
+    for aoi in aoi_polygons:
+        p = mpatches.Polygon(
+            np.array(aoi.exterior.coords), color='tab:cyan', linewidth=1, fill=False, linestyle='--')
+        ax.add_patch(p)
+    ax.autoscale()
+    ax.set_title(title)
+    
+    plt.show()
+
+
+from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset 
+def visualize_dataset(ds_list: List[GeoDataset], visualizer):
+
+    for ds in ds_list:
+        img_rgb = visualizer.rgb_from_bandstack(ds.scene.raster_source[:, :])
+
+        if isinstance(ds, SemanticSegmentationRandomWindowGeoDataset):
+            title = f"{ds.scene.id}, N={ds.max_windows}"
+            try:
+                windows = [ds.sample_window() for _ in range(ds.max_windows)]
+            except StopIteration as e:
+                print(f"Unable to sample windows for {ds.scene.id}")
+                break
+        
+        elif isinstance(ds, SemanticSegmentationSlidingWindowGeoDataset):
+            title = f"{ds.scene.id}, N={len(ds.windows)}"
+            windows = ds.windows
+        else:
+            raise ValueError("Unexpected type of dataset")
+        
+        show_windows(img_rgb, windows, title=title, aoi_polygons=ds.scene.aoi_polygons)

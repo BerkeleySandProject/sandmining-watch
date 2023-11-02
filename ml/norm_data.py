@@ -50,11 +50,14 @@ norm_s2_transformer = NormTransformer(mean=SATMEA_S2_MEAN, std=SATMEA_S2_STD)
 norm_s1_transformer = NormTransformer(mean=BSP_S1_MEAN, std=BSP_S1_STD)
 
 class DivideByConstantTransformer(RasterTransformer):
+    """
+    Divide all bands by a constant value and then clip between 0 and 1
+    """
     def __init__(self, constant):
         self.constant = constant
 
     def transform(self, chip: np.ndarray,
                 channel_order: Optional[list] = None) -> np.ndarray:
-        return chip / self.constant
+        return np.clip(chip / self.constant, 0, 1)
 
 divide_by_10000_transformer = DivideByConstantTransformer(10000)

@@ -1,5 +1,4 @@
 from .schemas import *
-from os.path import expanduser
 
 resnet50_moco_ft_config = SupervisedFinetuningCofig(
     model_type=ModelChoice.ResNet50UNet,
@@ -9,11 +8,11 @@ resnet50_moco_ft_config = SupervisedFinetuningCofig(
     s2_normalization=NormalizationS2Choice.DivideBy10000,
     batch_size=256,
     learning_rate=1e-3,
-    output_dir=expanduser("~/sandmining-watch/out/resnet50-moco"),
     datasets=DatasetChoice.S2_L1C,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn50_moco_0099.pth"
+    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn50_moco_0099.pth",
+    loss_fn=BackpropLossChoice.DICE
 )
 
 resnet18_moco_ft_config = SupervisedFinetuningCofig(
@@ -24,9 +23,9 @@ resnet18_moco_ft_config = SupervisedFinetuningCofig(
     s2_normalization=NormalizationS2Choice.DivideBy10000,
     batch_size=256,
     learning_rate=1e-3,
-    output_dir=expanduser("~/sandmining-watch/out/resnet18-moco"),
     datasets=DatasetChoice.S2_L1C,
     mine_class_loss_weight=2.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth"
+    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth",
+    loss_fn=BackpropLossChoice.DICE
 )

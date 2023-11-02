@@ -2,7 +2,7 @@ import datetime
 from typing import List
 
 from .schemas import ObservationPointer
-from .gcp_utils import list_files_in_bucket_with_suffix, get_public_url
+from .gcp_utils import list_files_in_bucket_with_suffix, list_files_in_bucket_with_prefix, get_public_url
 
 def get_date_from_key(key: str):
     # Example: From "Sone_Rohtas_84-21_24-91_2022-03-01_rgb_jhjhfhdd" this function returns a the datetime 2022-03-01 00:00:00
@@ -27,6 +27,13 @@ def get_annotation_path(key):
     # TODO: Fix problem at its root and remove the hack
     #path = f"labels/{observation}/annotations/{image}_annotations.geojson"
     path = f"labels/{observation}_median/annotations/{image}_annotations.geojson"
+    return path
+
+def get_river_path(key, buffer_m):
+    splitted = key.split("_")
+    observation = "_".join(splitted[:4])
+    image = "_".join(splitted[:5])
+    path = f"labels/{observation}_median/rivers/{observation}_rivers_{buffer_m}m.geojson"
     return path
 
 def get_annotations(gcp_client):
@@ -54,6 +61,16 @@ def annotations_path_to_s1(path:str):
 def annotations_path_to_rgb(path:str):
     return path.replace("annotations", "rgb").replace(".geojson", ".tif")
 
+def annotations_path_to_rivers(path:str, buffer:str):
+    path = path.replace("annotations", "rivers").replace(".geojson", f"_{buffer}.geojson")
+    # now it still has the date in, strip the date
+    path = path.split("_")
+    # remove the 3rd last element
+    path.pop(-3)
+    # join the rest
+    path = "_".join(path)
+    return path
+
 def path_to_observatation_key(path):
     observation_key:str = path.split("/")[-1]
     remove_strings = ["_rb.tif", "_bs.tif", "_annotations.geojson", "_s1.tif", "_s2.tif"]
@@ -61,19 +78,53 @@ def path_to_observatation_key(path):
         observation_key = observation_key.replace(remove_string, "")
     return observation_key
 
-def observation_factory(gcp_client) -> List[ObservationPointer]:
+def observation_factory(gcp_client, river_buffer='1000m') -> List[ObservationPointer]:
+    """
+    This functions yields all annoted observations in the GCP bucket.
+    """
     for site, annotations in get_annotations(gcp_client).items():
         for annotation_path in annotations:
             s2_l2a_path = annotations_path_to_s2_l2a(annotation_path)
             s2_l1c_path = annotations_path_to_s2_l1c(annotation_path)
             s1_path = annotations_path_to_s1(annotation_path)
             rgb_path = annotations_path_to_rgb(annotation_path)
+            rivers_path = annotations_path_to_rivers(annotation_path, river_buffer)
             observation = ObservationPointer(
                 uri_to_s1=get_public_url(s1_path),
                 uri_to_s2=get_public_url(s2_l2a_path),
                 uri_to_s2_l1c=get_public_url(s2_l1c_path),
                 uri_to_rgb=get_public_url(rgb_path),
                 uri_to_annotations=get_public_url(annotation_path),
+                uri_to_rivers=get_public_url(rivers_path),
                 name=path_to_observatation_key(s2_l2a_path)
             )
             yield observation
+
+
+def all_observations_for_location(gcp_client, location_key, river_buffer='1000m') -> List[ObservationPointer]:
+    """
+    This functions yields all data for a location WITHOUT annotations
+    """
+    
+    path_to_s2_l1c_data_in_bucket = f"labels/{location_key}_median/s2_l1c"
+    for blob_to_s2_l1c in list_files_in_bucket_with_prefix(gcp_client, path_to_s2_l1c_data_in_bucket):
+
+        # Create a dummy annotatations path. This is how the path the .geojson which annotations would look like, if it exists.
+        fake_annotations_path = blob_to_s2_l1c.name.replace("s2_l1c", "annotations").replace(".tif", ".geojson")
+        
+        s2_l2a_path = annotations_path_to_s2_l2a(fake_annotations_path)
+        s1_path = annotations_path_to_s1(fake_annotations_path)
+        rgb_path = annotations_path_to_rgb(fake_annotations_path)
+        rivers_path = annotations_path_to_rivers(fake_annotations_path, river_buffer)
+
+        observation = ObservationPointer(
+            uri_to_s1=get_public_url(s1_path),
+            uri_to_s2=get_public_url(s2_l2a_path),
+            uri_to_s2_l1c=get_public_url(blob_to_s2_l1c.name),
+            uri_to_rgb=get_public_url(rgb_path),
+            uri_to_annotations=None,
+            uri_to_rivers=get_public_url(rivers_path),
+            name=path_to_observatation_key(s2_l2a_path)
+        )
+        yield observation
+
