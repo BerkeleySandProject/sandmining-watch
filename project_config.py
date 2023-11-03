@@ -64,3 +64,8 @@ WANDB_PROJECT_NAME = "sandmine_detector"
 USE_RIVER_AOIS = True
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'
+
+# Number of pixels to discard at the edge of every window's prediction (in inference/evaluation mode)
+# Sliding window stride will depend on this value
+# See https://www.notion.so/andoshah/Inference-strategy-4da86e75cad848eeada298141ef23370?pvs=4
+N_EDGE_PIXELS_DISCARD = 30

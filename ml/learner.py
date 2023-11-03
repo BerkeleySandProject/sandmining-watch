@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from torch.optim.lr_scheduler import _LRScheduler
     from torch.utils.data import Dataset, Sampler
 
-from project_config import CLASS_CONFIG, WANDB_PROJECT_NAME
+from project_config import CLASS_CONFIG, WANDB_PROJECT_NAME, N_EDGE_PIXELS_DISCARD
 from experiment_configs.schemas import SupervisedTrainingConfig, BackpropLossChoice
 from ml.losses import DiceLoss
 from ml.model_stats import count_number_of_weights
@@ -814,26 +814,30 @@ class BinarySegmentationPredictor(ABC):
     def predict_site(
         self,
         ds: SemanticSegmentationSlidingWindowGeoDataset,
-        crop_sz = None
+        crop_sz: int,
     ) -> SemanticSegmentationSmoothLabels:
-        predictions = self.predict_dataset(
+        predictions_on_dl = self.predict_dataset(
             ds,
             numpy_out=True,
             progress_bar=False,
         )
-        return SemanticSegmentationLabels.from_predictions(
+        predictions_site =  SemanticSegmentationLabels.from_predictions(
             ds.windows,
-            predictions,
+            predictions_on_dl,
             smooth=True,
             extent=ds.scene.extent,
             num_classes=1,
             crop_sz=crop_sz,
         )
+        if np.max(predictions_site.pixel_hits) > 1:
+            print("Note: You are averaging predictions from overlapping windows. \
+                  Are you sure you want to du this?")
+        return predictions_site
 
     def predict_mine_probability_for_site(
         self,
         ds: SemanticSegmentationSlidingWindowGeoDataset,
-        crop_sz = None
+        crop_sz = N_EDGE_PIXELS_DISCARD,
     ):
         predictions = self.predict_site(ds, crop_sz)
         scores = predictions.get_score_arr(predictions.extent)

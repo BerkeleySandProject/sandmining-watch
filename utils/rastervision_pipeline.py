@@ -11,7 +11,7 @@ from rastervision.core.data.raster_source import RasterSource
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset
 
 
-from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS
+from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS, N_EDGE_PIXELS_DISCARD
 from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice
 from utils.schemas import ObservationPointer
 from ml.norm_data import norm_s1_transformer, norm_s2_transformer, divide_by_10000_transformer
@@ -175,26 +175,29 @@ def sliding_filter_by_aoi(windows: List['Box'],
 
     return result
 
-def custom_init_windows(self) -> None:
-    """Pre-compute windows."""
-
-    windows = self.scene.raster_source.extent.get_windows(
-        self.size,
-        stride=self.stride,
-        padding=self.padding,
-        pad_direction=self.pad_direction)
-    if len(self.scene.aoi_polygons) > 0:
-        windows = sliding_filter_by_aoi(windows, self.scene.aoi_polygons , within=False)
-        # windows = Box.filter_by_aoi(windows, self.scene.aoi_polygons, within=False)
-    self.windows = windows
-
-def scene_to_validation_ds(config, scene: Scene, stride=None):
-    if stride is None:
-        stride = config.tile_size
-
+def scene_to_validation_ds(config, scene: Scene):
     # No augementation and windows don't overlap. Use for validation during training time.
-    ds = SemanticSegmentationSlidingWindowGeoDataset(
-        scene,
+    ds = SemanticSegmentationSlidingWindowGeoDatasetCustom(
+        scene=scene,
+        ignore_aoi=False, # Filter windows by AOI 
+        size=config.tile_size,
+        stride=config.tile_size,
+        padding=config.tile_size,
+        pad_direction='end',
+        transform=None,
+        normalize=True, # If unsigned integer, bring to range [0, 1]
+    )
+    return ds
+
+
+def scene_to_inference_ds(config, scene: Scene, full_image: bool):
+    # In inference mode, we have a slining window configuration with overlapping windows.
+    # If full_image is True, sliding windows span the entire scene. Otherwise, sliding windows
+    # are filtered by the scene's AOI (if existent)
+    stride = config.tile_size - N_EDGE_PIXELS_DISCARD * 2
+    ds = SemanticSegmentationSlidingWindowGeoDatasetCustom(
+        scene=scene,
+        ignore_aoi=full_image, # If we want to run inference on the full image, we ignore the AOI.
         size=config.tile_size,
         stride=stride,
         padding=config.tile_size,
@@ -202,13 +205,8 @@ def scene_to_validation_ds(config, scene: Scene, stride=None):
         transform=None,
         normalize=True, # If unsigned integer, bring to range [0, 1]
     )
-
-    #override windows initialization with custom function
-    ds.init_windows = custom_init_windows.__get__(ds, SemanticSegmentationSlidingWindowGeoDataset)
-    #needs to be called again because it's only called during __init__, during which time the custom function has not been overridden
-    ds.init_windows()
-
     return ds
+
     
 from rastervision.core.box import Box
 from typing import List
@@ -279,4 +277,27 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
         ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
         
     return ds
-    
+
+
+class SemanticSegmentationSlidingWindowGeoDatasetCustom(SemanticSegmentationSlidingWindowGeoDataset):
+    """
+    The default SemanticSegmentationSlidingWindowGeoDataset requires windows to lie complement within in
+    the AOI. This laternative relaxes the conditation. Windows are accepted which has an overlap with the AOI
+
+    An additional parameter allows to ignore to AOI and sample windows across the entire image.
+    """
+    def __init__(self, ignore_aoi = False, **kwargs):
+        self.ignore_aoi = ignore_aoi
+        super().__init__(**kwargs)
+    def init_windows(self) -> None:
+        """Pre-compute windows."""
+        windows = self.scene.raster_source.extent.get_windows(
+            self.size,
+            stride=self.stride,
+            padding=self.padding,
+            pad_direction=self.pad_direction)
+        if len(self.scene.aoi_polygons_bbox_coords) > 0 and not self.ignore_aoi:
+            windows = Box.filter_by_aoi(windows,
+                                        self.scene.aoi_polygons_bbox_coords,
+                                        within=False)
+        self.windows = windows
