@@ -37,7 +37,6 @@ from ml.losses import DiceLoss
 from ml.model_stats import count_number_of_weights
 from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
 from utils.metrics import compute_metrics
-from utils.visualizing import Visualizer
 
 warnings.filterwarnings('ignore')
 

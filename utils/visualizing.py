@@ -18,58 +18,6 @@ from shapely.geometry import Polygon
 import numpy as np
 from skimage import exposure
 
-class Visualizer():
-    """
-    This class solves the problem of knowing which channels in an images correspons to RGB.
-
-    Context:
-    - Our earth engine exports (*_s2.tif) contains a subset of channels from Sentinel 2.
-    - In our rastervision pipeline, we again (can) specify a subset of channels to use.
-      The remaining channels are ignored. We refer to this selection of channels as "s2_channels".
-      The reference is the channels in our earth engine export.
-    
-    """
-    def __init__(self, s2_channels):
-        self.rgb_channels = self.infer_rbg_channels(s2_channels)
-
-    @classmethod
-    def infer_rbg_channels(cls, s2_channels):
-        rgb_band_idx = [e.value for e in RGB_BANDS]
-        if s2_channels is None:
-            return rgb_band_idx
-        else:
-            return [s2_channels.index(idx) for idx in rgb_band_idx]
-    
-
-    def rgb_from_bandstack(self, image):
-        # apply automatic contrast selection
-        p2, p98 = np.percentile(image[:,:,self.rgb_channels], (2, 98))
-        image_rescale = exposure.rescale_intensity(image[:,:,self.rgb_channels], in_range=(p2, p98))
-        return np.clip(image_rescale, 0, 1.)
-
-
-    def show_windows(self, img, windows, title=''):
-        rgb_img = self.rgb_from_bandstack(img)
-        fig, ax = plt.subplots(1, 1, squeeze=True, figsize=(8, 8))
-        ax.matshow(rgb_img)
-        
-        ax.axis('off')
-        # draw windows on top of the image
-        for w in windows:
-            p = patches.Polygon(w.to_points(), color='r', linewidth=1.5, fill=False)
-            ax.add_patch(p)
-
-        ax.autoscale()
-        ax.set_title(title)
-        plt.show()
-
-    
-# def to_rgb(img):
-#     if img.shape[2] == 3:
-#         return img
-#     else:
-#         img_rgb = img[:,:,RGB_BANDS]
-#         return img_rgb
 
 def show_image(img, title=''):
     img = to_rgb(img)
@@ -184,7 +132,7 @@ def display_aoi(raster_source, aoi_polygons):
 
     plt.show()
 
-def show_windows(img, windows, title='', aoi_polygons=None):
+def show_windows(img, windows, title='', aoi_polygons=[]):
     from matplotlib import pyplot as plt
     import matplotlib.patches as patches
 
@@ -207,23 +155,32 @@ def show_windows(img, windows, title='', aoi_polygons=None):
 
 
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset 
-def visualize_dataset(ds_list: List[GeoDataset], visualizer):
+def visualize_dataset(ds: GeoDataset):
 
-    for ds in ds_list:
-        img_rgb = visualizer.rgb_from_bandstack(ds.scene.raster_source[:, :])
+    rgb_band_idx = [e.value for e in RGB_BANDS]
+    img_rgb = raster_source_to_rgb(ds.scene.raster_source)
 
-        if isinstance(ds, SemanticSegmentationRandomWindowGeoDataset):
-            title = f"{ds.scene.id}, N={ds.max_windows}"
-            try:
-                windows = [ds.sample_window() for _ in range(ds.max_windows)]
-            except StopIteration as e:
-                print(f"Unable to sample windows for {ds.scene.id}")
-                break
-        
-        elif isinstance(ds, SemanticSegmentationSlidingWindowGeoDataset):
-            title = f"{ds.scene.id}, N={len(ds.windows)}"
-            windows = ds.windows
-        else:
-            raise ValueError("Unexpected type of dataset")
-        
-        show_windows(img_rgb, windows, title=title, aoi_polygons=ds.scene.aoi_polygons)
+    if isinstance(ds, SemanticSegmentationRandomWindowGeoDataset):
+        title = f"{ds.scene.id}, N={ds.max_windows}"
+        windows = [ds.sample_window() for _ in range(ds.max_windows)]
+    
+    elif isinstance(ds, SemanticSegmentationSlidingWindowGeoDataset):
+        title = f"{ds.scene.id}, N={len(ds.windows)}"
+        windows = ds.windows
+    else:
+        raise ValueError("Unexpected type of dataset")
+    
+    show_windows(img_rgb, windows, title=title, aoi_polygons=ds.scene.aoi_polygons)
+
+
+def raster_source_to_rgb(raster_source):
+    rgb_band_idx = [e.value for e in RGB_BANDS]
+    img = raster_source.get_raw_chip(raster_source.extent)
+    img = img[:,:,rgb_band_idx]
+    img = img / 3500
+    """
+    Alternative:
+    p2, p98 = np.percentile(image[:,:,self.rgb_channels], (2, 98))
+    image_rescale = exposure.rescale_intensity(image[:,:,self.rgb_channels], in_range=(p2, p98))
+    """
+    return np.clip(img, 0, 1)

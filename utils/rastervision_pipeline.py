@@ -111,7 +111,7 @@ def warn_if_nan_in_raw_raster(raster_source):
     else:
         raster_sources = [raster_source]
     for raster_source in raster_sources:
-        raw_image = raster_source.get_raw_image_array()
+        raw_image = raster_source.get_raw_chip(raster_source.extent)
         if np.isnan(raw_image).any():
             print(f"WARNING: NaN in raw image {raster_source.uris}")
 
