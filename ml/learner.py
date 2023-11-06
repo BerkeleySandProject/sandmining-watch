@@ -36,7 +36,6 @@ from experiment_configs.schemas import SupervisedTrainingConfig, BackpropLossCho
 from ml.losses import DiceLoss
 from ml.model_stats import count_number_of_weights
 from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
-from utils.metrics import compute_metrics
 
 warnings.filterwarnings('ignore')
 
@@ -470,76 +469,6 @@ class BinarySegmentationLearner(ABC):
                 continue
         return metrics_to_log
     
-    def evaluate_and_log_to_wandb(self, datasets):
-        # TODO refactoring
-        # dataset evaluation
-        # allow evaluation without logging to W&B
-        
-        """
-        Runs inference on datasets.
-        Logs to W&B:
-        - Metrics per observation (unless ground truth is all negative)
-        - Metric over all observations
-        - RGB image with ground truth and predicted masks per observation (unless ground truth is all negative)
-        - Predicted probabilites per observation
-        """
-        assert wandb.run is not None
-        visualizer = Visualizer(self.config.s2_channels)
-
-        segmentation_result_images = []
-        predicted_probabilities_images = []
-        segmentation_metrics = {}
-        predictions_raveled = []
-        ground_truths_raveled = []
-
-        for ds in datasets:
-            print(ds.scene.id)
-            rgb_img = visualizer.rgb_from_bandstack(
-                ds.scene.raster_source.get_image_array()
-            )
-            predicted_probabilities = self.predict_mine_probability_for_site(ds, crop_sz=0)
-            predicted_mask = predicted_probabilities > 0.5
-            ground_truth_mask = ds.scene.label_source.get_label_arr()
-
-            predictions_raveled.append(predicted_mask.ravel())
-            ground_truths_raveled.append(ground_truth_mask.ravel())
-            
-            predicted_probabilities_images.append(
-                create_predicted_probabilities_image(predicted_probabilities, ds.scene.id)
-            )
-            segmantation_result_image = create_semantic_segmentation_image(
-                rgb_img, predicted_mask, ground_truth_mask, ds.scene.id
-            )
-
-            ground_truth_is_all_negative = np.all(ground_truth_mask == 0)
-            if ground_truth_is_all_negative:
-                # If the the observation does not have a labelled mine, it makes no sense to compute our metrics,
-                # because we will have no true positives.
-                continue
-
-            # Metrics per observation
-            precision, recall, f1_score = compute_metrics(ground_truth_mask, predicted_mask)
-            segmentation_metrics.update({
-                f"eval/{ds.scene.id}/precision": precision,
-                f"eval/{ds.scene.id}/recall": recall,
-                f"eval/{ds.scene.id}/f1_score": f1_score,
-            })
-            segmentation_result_images.append(segmantation_result_image)
-
-        # Metrics over all observations
-        all_predictions_concatenated  = np.concatenate(predictions_raveled)
-        all_ground_truths_concatenated  = np.concatenate(ground_truths_raveled)
-        total_precision, total_recall, total_f1_score = compute_metrics(all_ground_truths_concatenated, all_predictions_concatenated)
-        wand_log_dict = {
-            **segmentation_metrics,
-            'eval/total/precision': total_precision,
-            'eval/total/recall': total_recall,
-            'eval/total/f1_score': total_f1_score,
-            'Segmenation masks': segmentation_result_images,
-            'Predicted probabilites': predicted_probabilities_images,
-        }
-        print("Logging evaluation data to W&B")
-        wandb.log(wand_log_dict)
 
     
 def get_schedulers_last_lr(scheduler: '_LRScheduler'):
@@ -559,7 +488,7 @@ class BinarySegmentationPredictor(ABC):
     def __init__(self,
                  config: SupervisedTrainingConfig,
                  model: nn.Module,
-                 path_to_weights: str,
+                 path_to_weights: Optional[str] = None,
                  ):
         self.config = config
         self.device = torch.device('cuda'
@@ -568,9 +497,11 @@ class BinarySegmentationPredictor(ABC):
         self.model = model
         self.model.to(device=self.device)
 
-        self.model.load_state_dict(
-            torch.load(path_to_weights, map_location=self.device)
-        )
+        if path_to_weights:
+            print(f"Loading weights from {path_to_weights}")
+            self.model.load_state_dict(
+                torch.load(path_to_weights, map_location=self.device)
+            )
 
         self.class_names = CLASS_CONFIG.names
         self.num_workers = 0 # 0 means no multiprocessing
@@ -840,8 +771,8 @@ class BinarySegmentationPredictor(ABC):
             crop_sz=crop_sz,
         )
         if np.max(predictions_site.pixel_hits) > 1:
-            print("Note: You are averaging predictions from overlapping windows. \
-                  Are you sure you want to du this?")
+            print("NOTE: You are averaging predictions from overlapping windows. \
+                  \nAre you sure you want to do this?")
         return predictions_site
 
     def predict_mine_probability_for_site(
