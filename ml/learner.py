@@ -818,8 +818,7 @@ class BinarySegmentationPredictor(ABC):
         # Squeeze to remove the n_classes dimension (since it is size 1)
         # From batch_size x n_classes x width x height
         # To batch_size x width x height
-        # Do this to work with PyTorch's BCEWithLogitsLoss
-        return x.squeeze()
+        return x.squeeze(1)
 
 
     def predict_site(
