@@ -42,6 +42,8 @@ def model_factory(
     elif config.model_type == ModelChoice.ResNet50UNet:
         from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
         model = ResNetEncoderUNetDecoder("resnet50", n_channels, n_classes)
+    elif config.model_type == ModelChoice.Test:
+        model = torch.nn.Conv2d(n_channels, 1, 1)
     else:
         raise ValueError("Error in model selection")
     

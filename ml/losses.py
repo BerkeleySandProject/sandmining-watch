@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 # https://stackoverflow.com/questions/67230305/i-want-to-confirm-which-of-these-methods-to-calculate-dice-loss-is-correct
 class DiceLoss(nn.Module):
@@ -36,3 +37,18 @@ class DiceLoss2(nn.Module):
         dice = (2.*intersection)/(inputs.sum() + targets.sum() + smooth)
         return 1 - dice
     
+class BCEWithConfidence(nn.Module):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+    
+    def forward(self, input, target, confidence):
+        if confidence is None:
+            return F.binary_cross_entropy_with_logits(
+                input, target
+            )
+        else:
+            return F.binary_cross_entropy_with_logits(
+                input, target, weight=confidence
+            )
+        
+

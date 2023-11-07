@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 from project_config import CLASS_CONFIG, WANDB_PROJECT_NAME
 from experiment_configs.schemas import SupervisedTrainingConfig, BackpropLossChoice
-from ml.losses import DiceLoss
+from ml.losses import DiceLoss, BCEWithConfidence
 from ml.model_stats import count_number_of_weights
 from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
 from utils.metrics import compute_metrics
@@ -78,7 +78,7 @@ class BinarySegmentationLearner(ABC):
         self.model = model
         self.model.to(device=self.device)
         
-        self.bce_loss = nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor(config.mine_class_loss_weight))
+        self.bce_loss = BCEWithConfidence()
         self.dice_loss = DiceLoss()
 
         self.opt = optimizer
@@ -175,16 +175,16 @@ class BinarySegmentationLearner(ABC):
         return metric_names
 
     def train_step(self, batch, batch_ind):
-        x, y = batch
+        x, y, c = batch
         out = self.post_forward(self.model(x))
         # In the following, we hardcoded our metric names for our loss functions
-        return {"train_bce_loss": self.bce_loss(out, y),
+        return {"train_bce_loss": self.bce_loss(out, y, c),
                 "train_dice_loss": self.dice_loss(out, y)}
 
     def validate_step(self, batch, batch_ind):
-        x, y = batch
+        x, y, c = batch
         out = self.post_forward(self.model(x))
-        val_bce_loss = self.bce_loss(out, y)
+        val_bce_loss = self.bce_loss(out, y, c)
         val_dice_loss = self.dice_loss(out, y)
         out_probabilities = torch.sigmoid(out)
 
@@ -331,11 +331,12 @@ class BinarySegmentationLearner(ABC):
         num_samples = 0
         outputs = []
         with tqdm(self.train_dl, desc='Training') as bar:
-            for batch_ind, (x, y, confidences) in enumerate(bar):
+            for batch_ind, (x, y, c) in enumerate(bar):
                 x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                 y = self.to_device(y.float(), self.device)
-                batch = (x, y)
+                c = self.to_device(c, self.device)
+                batch = (x, y, c)
                 optimizer.zero_grad()
                 output = self.train_step(batch, batch_ind)
 
@@ -368,11 +369,12 @@ class BinarySegmentationLearner(ABC):
         outputs = []
         with torch.inference_mode():
             with tqdm(dl, desc='Validating') as bar:
-                for batch_ind, (x, y, confidences) in enumerate(bar):
+                for batch_ind, (x, y, c) in enumerate(bar):
                     x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                     y = self.to_device(y.float(), self.device)
-                    batch = (x, y)
+                    c = self.to_device(c, self.device)
+                    batch = (x, y, c)
                     output = self.validate_step(batch, batch_ind)
                     outputs.append(output)
                     num_samples += x.shape[0]

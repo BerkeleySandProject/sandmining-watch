@@ -22,8 +22,11 @@ from shapely.geometry.base import BaseGeometry
 import torch
 
 
-from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS
-from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice
+from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS, HARD_LABELS
+from experiment_configs.schemas import (
+    SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice, 
+    DatasetsConfig, LabelChoice, ConfidenceChoice
+)
 from utils.schemas import ObservationPointer
 from ml.norm_data import norm_s1_transformer, norm_s2_transformer, divide_by_10000_transformer
 from ml.augmentations import DEFAULT_AUGMENTATIONS
@@ -35,7 +38,7 @@ from typing import TYPE_CHECKING, Optional, List
 from shapely.geometry import Polygon
 
 def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
-    if config.datasets == DatasetChoice.S1S2:
+    if config.datasets.images == DatasetChoice.S1S2:
         return create_scene_s1s2(
             config,
             s2_uri=observation.uri_to_s2,
@@ -44,7 +47,7 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers
         )
-    elif config.datasets == DatasetChoice.S2:
+    elif config.datasets.images == DatasetChoice.S2:
         return create_scene_s2(
             config,
             s2_uri=observation.uri_to_s2,
@@ -52,7 +55,7 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers
         )
-    elif config.datasets == DatasetChoice.S2_L1C:
+    elif config.datasets.images == DatasetChoice.S2_L1C:
         return create_scene_s2(
             config,
             s2_uri=observation.uri_to_s2_l1c,
@@ -66,6 +69,7 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
 def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id, rivers_uri) -> Scene:
     s1s2_source = create_s1s2_multirastersource(config, s2_uri, s1_uri)
     scene = rastersource_with_labeluri_to_scene(
+        config.datasets,
         s1s2_source,
         label_uri,
         scene_id,
@@ -76,6 +80,7 @@ def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id, rivers_uri) -
 def create_scene_s2(config, s2_uri, label_uri, scene_id, rivers_uri) -> Scene:
     s2_source = create_s2_image_source(config, s2_uri)
     scene = rastersource_with_labeluri_to_scene(
+        config.datasets,
         s2_source,
         label_uri,
         scene_id,
@@ -130,7 +135,7 @@ def warn_if_nan_in_raw_raster(raster_source):
         if np.isnan(raw_image).any():
             print(f"WARNING: NaN in raw image {raster_source.uris}")
 
-def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_uri, scene_id, rivers_uri) -> Scene:
+def rastersource_with_labeluri_to_scene(config: DatasetsConfig, img_raster_source: RasterSource, label_uri, scene_id, rivers_uri) -> Scene:
     if label_uri is not None:
         vector_source = GeoJSONVectorSource(
             label_uri,
@@ -140,21 +145,32 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
                 ClassInferenceTransformer(default_class_id=CLASS_CONFIG.get_class_id(CLASS_NAME))
             ]
         )
-        label_raster_source = RasterizedSourceProbability(
-            vector_source,
-            background_class_id=CLASS_CONFIG.null_class_id,
-            bbox=img_raster_source.bbox
-        )
+        if config.labels == LabelChoice.Hard:
+            label_raster_source_class = RasterizedLabelsFromProbs
+        elif config.labels == LabelChoice.Soft:
+            label_raster_source_class = RasterizedSourceProbability
         label_source = SemanticSegmentationLabelSource(
-            label_raster_source, class_config=CLASS_CONFIG
-        )
-        confidence_source = SemanticSegmentationLabelSource(
-            RasterizedConfidences(
+            label_raster_source_class(
                 vector_source,
                 background_class_id=CLASS_CONFIG.null_class_id,
-                bbox=img_raster_source.extent),
-        class_config=CLASS_CONFIG
+                bbox=img_raster_source.bbox), 
+            class_config=CLASS_CONFIG
         )
+
+        if config.confidence == ConfidenceChoice.none:
+            confidence_source = None
+        else:
+            if config.confidence == ConfidenceChoice.All:
+                confidence_raster_source_class = RasterizedConfidences
+            elif config.labels == ConfidenceChoice.HighOnly:
+                confidence_raster_source_class = RasterizedHighConfidences
+            confidence_source = SemanticSegmentationLabelSource(
+                confidence_raster_source_class(
+                    vector_source,
+                    background_class_id=CLASS_CONFIG.null_class_id,
+                    bbox=img_raster_source.extent),
+                class_config=CLASS_CONFIG
+            )
     else:
         label_source = None
 
@@ -405,6 +421,20 @@ class RasterizedSourceProbability(RasterizedSource):
             extent=self.extent,
             all_touched=self.all_touched)
         return np.expand_dims(chip, 2)
+    
+class RasterizedLabelsFromProbs(RasterizedSourceProbability):
+    def __init__(self,
+                 vector_source: 'VectorSource',
+                 background_class_id: int,
+                 bbox: Optional['Box'] = None,
+                 all_touched: bool = False,
+                 raster_transformers: List['RasterTransformer'] = [],):
+        super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
+
+    def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
+        chip = super()._get_chip(window, out_shape)
+        chip[chip != 0] = 1
+        return chip
 
 class RasterizedConfidences(RasterizedSourceProbability):
     def __init__(self,
@@ -412,10 +442,8 @@ class RasterizedConfidences(RasterizedSourceProbability):
                  background_class_id: int,
                  bbox: Optional['Box'] = None,
                  all_touched: bool = False,
-                 raster_transformers: List['RasterTransformer'] = [],
-                 other_class_confidence: float = 1.):
+                 raster_transformers: List['RasterTransformer'] = []):
         super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
-        self.other_class_confidence = other_class_confidence
 
     def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
         """Return the chip located in the window.
@@ -432,14 +460,39 @@ class RasterizedConfidences(RasterizedSourceProbability):
             [height, width, channels] numpy array
         """
         # log.debug(f'Rasterizing window: {window}')
-        chip = geoms_to_raster_probability(
-            self.df,
-            window,
-            background_class_id=self.background_class_id,
-            extent=self.extent,
-            all_touched=self.all_touched)
-        chip[chip == 0] = self.other_class_confidence
-        return np.expand_dims(chip, 2)
+        chip = super()._get_chip(window, out_shape)
+        chip[chip == 0] = 1
+        return chip
+
+class RasterizedHighConfidences(RasterizedConfidences):
+    def __init__(self,
+                 vector_source: 'VectorSource',
+                 background_class_id: int,
+                 bbox: Optional['Box'] = None,
+                 all_touched: bool = False,
+                 raster_transformers: List['RasterTransformer'] = [],
+                 confidence_threshold: float = .75):
+        super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
+        self.confidence_threshold = confidence_threshold
+
+    def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
+        """Return the chip located in the window.
+
+        Polygons falling within the window are rasterized using the class_id, and
+        the background is filled with background_class_id. Also, any pixels in the
+        window outside the extent are zero, which is the don't-care class for
+        segmentation.
+
+        Args:
+            window: Box
+
+        Returns:
+            [height, width, channels] numpy array
+        """
+        # log.debug(f'Rasterizing window: {window}')
+        chip = super()._get_chip(window, out_shape)
+        chip[chip < self.confidence_threshold] = 0
+        return chip
 
 class SceneWithConfidences(Scene):
     def __init__(self,
@@ -447,7 +500,7 @@ class SceneWithConfidences(Scene):
                  raster_source: 'RasterSource',
                  label_source: Optional['LabelSource'] = None,
                  confidence_source: Optional['LabelSource'] = None,
-                 label_store: Optional['LabelStore'] = None,
+                 label_store = None,
                  aoi_polygons: Optional[List['BaseGeometry']] = None):
         super().__init__(id, raster_source, label_source, label_store, aoi_polygons)
         self.confidence_source = confidence_source

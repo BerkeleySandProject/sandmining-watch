@@ -56,6 +56,9 @@ RGB_BANDS = [S2Band.B4, S2Band.B3, S2Band.B2]
 #     "IR": IR_CHANNELS,
 # }
 
+# To use hard labels set to True
+# If false, uses soft labels
+HARD_LABELS = True
 
 # Labelbox
 LABELBOX_PROJECT_ID = "cllbeyixh0bxt07uxfvg977h3"

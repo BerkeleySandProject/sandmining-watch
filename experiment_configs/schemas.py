@@ -14,6 +14,7 @@ class ModelChoice(Enum):
     ResNet18UNet = "resnet18-unet"
     ResNet34UNet = "resnet34-unet"
     ResNet50UNet = "resnet50-unet"
+    Test = "test"
 
 class OptimizerChoice(Enum):
     AdamW = "adamw"
@@ -28,6 +29,15 @@ class DatasetChoice(Enum):
     S1S2 = "s1s2"  # S1 and S2 (L2A) data
     S2_L1C = "s2-l1c"
 
+class LabelChoice(Enum):
+    Hard = "hard"
+    Soft = "soft"
+
+class ConfidenceChoice(Enum):
+    none = "none"
+    All = "all"
+    HighOnly = "high-only"
+
 class NormalizationS2Choice(Enum):
     # Why normalization shall be applied on the S2 images
     ChannelWise = "channelwise" # For each channel, projects 4 standard deviations between [0,255] / [0,1]
@@ -36,6 +46,12 @@ class NormalizationS2Choice(Enum):
 class BackpropLossChoice(Enum):
     BCE = "BCE"
     DICE = "DICE"
+
+@dataclass
+class DatasetsConfig:
+    images: DatasetChoice
+    labels: LabelChoice
+    confidence: ConfidenceChoice
 
 @dataclass
 class SupervisedTrainingConfig:
@@ -48,9 +64,8 @@ class SupervisedTrainingConfig:
     loss_fn: BackpropLossChoice
     batch_size: int
     learning_rate: float
-    datasets: DatasetChoice
+    datasets: DatasetsConfig
     mine_class_loss_weight: float
-
 
 class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
