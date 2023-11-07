@@ -2,7 +2,7 @@ from enum import Enum
 
 from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningCofig, ModelChoice, FinetuningStratagyChoice
 from typing import Union
-
+import torch
 
 def model_factory(
         config: Union[SupervisedTrainingConfig, SupervisedFinetuningCofig] ,

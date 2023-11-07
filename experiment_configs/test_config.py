@@ -10,8 +10,8 @@ test_config = SupervisedTrainingConfig(
     learning_rate=1e-3,
     datasets=DatasetsConfig(
         images=DatasetChoice.S1S2,
-        labels=LabelChoice.Hard,
-        confidence=ConfidenceChoice.All
+        labels=LabelChoice.Soft,
+        confidence=ConfidenceChoice.none
     ),
     mine_class_loss_weight=2.,
     loss_fn=BackpropLossChoice.DICE

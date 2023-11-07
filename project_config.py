@@ -8,12 +8,16 @@ from rastervision.core.data import ClassConfig
 #     null_class='other'
 # ) 
 CLASS_NAME = 'other'
+# CLASS_CONFIG = ClassConfig(
+#     colors=['grey', 'red', 'maroon', 'purple', 'blue'],
+#     names=['other', '25', '50', '75', '100'],
+#     null_class='other'
+# ) 
 CLASS_CONFIG = ClassConfig(
-    colors=['grey', 'red', 'maroon', 'purple', 'blue'],
-    names=['other', '25', '50', '75', '100'],
-    null_class='other'
-) 
-
+    colors=["grey", "red"],
+    names=["other", "sandmine"],
+    null_class="other"
+)
 
 from split import training_locations, validation_locations
 def is_training(observation_key:str):

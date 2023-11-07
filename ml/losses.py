@@ -42,7 +42,7 @@ class BCEWithConfidence(nn.Module):
         super().__init__(*args, **kwargs)
     
     def forward(self, input, target, confidence):
-        if confidence is None:
+        if torch.isnan(confidence).all():
             return F.binary_cross_entropy_with_logits(
                 input, target
             )
