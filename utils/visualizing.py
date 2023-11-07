@@ -104,12 +104,12 @@ class Visualizer():
         plt.show()
 
     
-# def to_rgb(img):
-#     if img.shape[2] == 3:
-#         return img
-#     else:
-#         img_rgb = img[:,:,RGB_BANDS]
-#         return img_rgb
+def to_rgb(img):
+    if img.shape[2] == 3:
+        return img
+    else:
+        img_rgb = img[:,:,RGB_BANDS]
+        return img_rgb
 
 def show_image(img, title=''):
     img = to_rgb(img)
@@ -224,7 +224,7 @@ def display_aoi(raster_source, aoi_polygons):
 
     plt.show()
 
-def show_windows(img, windows, title='', aoi_polygons=None):
+def show_windows(img, windows, title='', aoi_polygons=[]):
     from matplotlib import pyplot as plt
     import matplotlib.patches as patches
 
@@ -249,17 +249,13 @@ def show_windows(img, windows, title='', aoi_polygons=None):
 # from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset 
 from .rastervision_pipeline import SemanticSegmentationWithConfidenceRandomWindowGeoDataset, SemanticSegmentationWithConfidenceSlidingWindowGeoDataset
 def visualize_dataset(ds_list: List[GeoDataset], visualizer):
-
     for ds in ds_list:
-        img_rgb = visualizer.rgb_from_bandstack(ds.scene.raster_source[:, :])
+        rgb_band_idx = [e.value for e in RGB_BANDS]
+        img_rgb = raster_source_to_rgb(ds.scene.raster_source)
 
         if isinstance(ds, SemanticSegmentationWithConfidenceRandomWindowGeoDataset):
             title = f"{ds.scene.id}, N={ds.max_windows}"
-            try:
-                windows = [ds.sample_window() for _ in range(ds.max_windows)]
-            except StopIteration as e:
-                print(f"Unable to sample windows for {ds.scene.id}")
-                break
+            windows = [ds.sample_window() for _ in range(ds.max_windows)]
         
         elif isinstance(ds, SemanticSegmentationWithConfidenceSlidingWindowGeoDataset):
             title = f"{ds.scene.id}, N={len(ds.windows)}"
@@ -268,3 +264,16 @@ def visualize_dataset(ds_list: List[GeoDataset], visualizer):
             raise ValueError("Unexpected type of dataset")
         
         show_windows(img_rgb, windows, title=title, aoi_polygons=ds.scene.aoi_polygons)
+
+
+def raster_source_to_rgb(raster_source):
+    rgb_band_idx = [e.value for e in RGB_BANDS]
+    img = raster_source.get_raw_chip(raster_source.extent)
+    img = img[:,:,rgb_band_idx]
+    img = img / 3500
+    """
+    Alternative:
+    p2, p98 = np.percentile(image[:,:,self.rgb_channels], (2, 98))
+    image_rescale = exposure.rescale_intensity(image[:,:,self.rgb_channels], in_range=(p2, p98))
+    """
+    return np.clip(img, 0, 1)

@@ -162,5 +162,5 @@ cython_debug/
 out/
 data/
 notebooks_local/
-train/wandb
+train_eval/wandb
 nohup.out
