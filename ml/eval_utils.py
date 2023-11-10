@@ -45,25 +45,27 @@ def evaluate_predicitions(prediction_results):
     all_predictions = np.concatenate(all_predictions_list)
     all_gt = np.concatenate(all_gt_list)
 
-    pr_plot = make_precision_recall_curve_plot(all_gt, all_predictions)
     precision, recall, f1_score, average_precision = compute_metrics(all_gt, all_predictions)
     eval_dict.update({
         f"eval/total/precision": precision,
         f"eval/total/recall": recall,
         f"eval/total/f1_score": f1_score,
         f"eval/total/average_precision": average_precision,
-        f"eval/total/pr_curve": pr_plot,
     })
+    if wandb.run is not None:
+        pr_curve = make_precision_recall_curve_plot(all_gt, all_predictions)
+        eval_dict.update({
+            f"eval/total/precision_recall_curve": pr_curve,
+        })
     return eval_dict
 
 
 def make_precision_recall_curve_plot(gt, predictions):
-    precision, recall, _ = precision_recall_curve(gt, predictions)
-    data = {"precision": precision, "recall": recall}
-    pr_table = wandb.Table(data=pd.DataFrame(data))
-    return wandb.plot.line(
-        pr_table, x="recall", y="precision",
-        title="Precision v. Recall"
+    # wandb.plot.pr_curve() expects the predictions to have the shape (*y_true.shape, num_classes)
+    # -> hack: we duplicate the array of shape (n,) into (n,2)
+    preds = np.stack([predictions, predictions], axis=1)
+    return wandb.plot.pr_curve(
+        gt, preds, classes_to_plot=[1], labels=['other', 'sandmine']
     )
 
 def make_wandb_segmentation_masks(prediction_results):
