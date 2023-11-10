@@ -26,7 +26,7 @@ def is_validation(observation_key:str):
 # Band order in _s2.tif ['VV', 'VH']
 
 class S2Band(Enum):
-    # The value indicates the channel idx in our GCP export
+    # The value indicates the channel idx in our GCP export of Sentinel-2 L2A data
     B1 = 0
     B2 = 1
     B3 = 2
@@ -37,18 +37,11 @@ class S2Band(Enum):
     B8 = 7
     B8A = 8
     B9 = 9
-    B10 = -99 # we did not not export this
+    B10 = -99 # we did not not export this for L2A
     B11 = 10
     B12 = 11
 
-
 RGB_BANDS = [S2Band.B4, S2Band.B3, S2Band.B2]
-#IR_CHANNELS = [11, 10, 9]
-# DISPLAY_GROUPS = {
-#     "RGB": RGB_BANDS,
-#     "IR": IR_CHANNELS,
-# }
-
 
 # Labelbox
 LABELBOX_PROJECT_ID = "cllbeyixh0bxt07uxfvg977h3"
