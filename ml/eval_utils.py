@@ -1,5 +1,6 @@
 import numpy as np
-from sklearn.metrics import average_precision_score
+import pandas as pd
+from sklearn.metrics import average_precision_score, precision_recall_curve
 import wandb
 
 from utils.wandb_utils import create_semantic_segmentation_image
@@ -43,14 +44,27 @@ def evaluate_predicitions(prediction_results):
 
     all_predictions = np.concatenate(all_predictions_list)
     all_gt = np.concatenate(all_gt_list)
+
+    pr_plot = make_precision_recall_curve_plot(all_gt, all_predictions)
     precision, recall, f1_score, average_precision = compute_metrics(all_gt, all_predictions)
     eval_dict.update({
         f"eval/total/precision": precision,
         f"eval/total/recall": recall,
         f"eval/total/f1_score": f1_score,
         f"eval/total/average_precision": average_precision,
+        f"eval/total/pr_curve": pr_plot,
     })
     return eval_dict
+
+
+def make_precision_recall_curve_plot(gt, predictions):
+    precision, recall, _ = precision_recall_curve(gt, predictions)
+    data = {"precision": precision, "recall": recall}
+    pr_table = wandb.Table(data=pd.DataFrame(data))
+    return wandb.plot.line(
+        pr_table, x="recall", y="precision",
+        title="Precision v. Recall"
+    )
 
 def make_wandb_segmentation_masks(prediction_results):
     """
