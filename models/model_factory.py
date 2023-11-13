@@ -18,7 +18,7 @@ def model_factory(
     elif config.model_type == ModelChoice.Segformer:
         from transformers import SegformerConfig
         from models.segformer.segformer_rv import SegformerForSemanticSegmentationForRV
-        segformer_config = SegformerConfig(num_channels=n_channels, num_labels=n_classes)
+        segformer_config = SegformerConfig(num_channels=n_channels, num_labels=n_classes) # SegFormer-B0
         model = SegformerForSemanticSegmentationForRV(segformer_config, img_size=config.tile_size)
     elif config.model_type == ModelChoice.SatmaeBaseLinearDecoder:
         from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_linear_decoder import SatMaeSegmenterWithLinearDecoder

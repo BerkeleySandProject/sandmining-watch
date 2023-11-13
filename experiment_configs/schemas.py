@@ -56,12 +56,8 @@ class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
     LinearProbing = "linear-probing" # Encoder weights are frozen
     FreezeEmbed = "freeze-embed" # Only applicable for ViT! Patch embed layer is frozen.
-    LayerwiseLrDecay = "layerwise-lr-decay" # 
 
 @dataclass
 class SupervisedFinetuningCofig(SupervisedTrainingConfig):
     finetuning_strategy: FinetuningStratagyChoice
-
-    # Sometimes, we will resume a finetuning job. In this case, we don't load the pretrained encoder weights,
-    # but the checkpoint from finetuning. Therefore, encoder_weights_path is an optional parameter.
     encoder_weights_path: Optional[bool]
