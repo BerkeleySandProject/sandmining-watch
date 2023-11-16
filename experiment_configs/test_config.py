@@ -8,11 +8,7 @@ test_config = SupervisedTrainingConfig(
     s2_normalization=NormalizationS2Choice.ChannelWise,
     batch_size=32,
     learning_rate=1e-3,
-    datasets=DatasetsConfig(
-        images=DatasetChoice.S1S2,
-        labels=LabelChoice.Soft,
-        confidence=ConfidenceChoice.none
-    ),
+    dataset=DatasetChoice.S1S2,
     mine_class_loss_weight=2.,
     loss_fn=BackpropLossChoice.DICE
 )
