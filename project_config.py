@@ -56,6 +56,15 @@ WANDB_PROJECT_NAME = "sandmine_detector"
 #To use river AOIs set this to TRUE
 USE_RIVER_AOIS = True
 
+#Use width of buffer for AOIs
+RIVER_BUFFER_M = '1000m'
+
+#Where the annotation json (master list of obseravations) is stored
+# find the file path by looking for the latest version and date in the file name
+# e.g. annotations_json_v0.1_2021-04-08.json
+
+DATASET_JSON_PATH = 'dataset/dataset_v0.1.0_2023-11-16.json'
+
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'
 
 # Number of pixels to discard at the edge of every window's prediction (in inference/evaluation mode)
