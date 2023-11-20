@@ -37,7 +37,7 @@ def is_validation(observation_key:str):
 # Band order in _s2.tif ['VV', 'VH']
 
 class S2Band(Enum):
-    # The value indicates the channel idx in our GCP export
+    # The value indicates the channel idx in our GCP export of Sentinel-2 L2A data
     B1 = 0
     B2 = 1
     B3 = 2
@@ -48,10 +48,9 @@ class S2Band(Enum):
     B8 = 7
     B8A = 8
     B9 = 9
-    B10 = -99 # we did not not export this
+    B10 = -99 # we did not not export this for L2A
     B11 = 10
     B12 = 11
-
 
 RGB_BANDS = [S2Band.B4, S2Band.B3, S2Band.B2]
 #IR_CHANNELS = [11, 10, 9]
@@ -78,6 +77,15 @@ WANDB_PROJECT_NAME = "sandmine_detector"
 
 #To use river AOIs set this to TRUE
 USE_RIVER_AOIS = False
+
+#Use width of buffer for AOIs
+RIVER_BUFFER_M = '1000m'
+
+#Where the annotation json (master list of obseravations) is stored
+# find the file path by looking for the latest version and date in the file name
+# e.g. annotations_json_v0.1_2021-04-08.json
+
+DATASET_JSON_PATH = 'dataset/dataset_v0.1.0_2023-11-16.json'
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'
 

@@ -140,5 +140,17 @@ def get_confidence_geojson_fc_from_annotation_objects(annotation_objects):
         geojson_out['features'][i]['properties'] = {'class_id': confidence[i]}
 
 
+    # Convert to GeoJSON
+    geojson_out = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                # "type": "Feature",
+                "geometry": feature["geojson"],
+                "properties": {"Confidence": feature["classifications"][0]["radio_answer"]["name"]},
+            }
+            for feature in annotation_objects
+        ],
+    }
 
     return geojson_out

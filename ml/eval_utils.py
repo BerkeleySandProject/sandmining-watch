@@ -1,5 +1,6 @@
 import numpy as np
-from sklearn.metrics import average_precision_score
+import pandas as pd
+from sklearn.metrics import average_precision_score, precision_recall_curve
 import wandb
 
 from utils.wandb_utils import create_semantic_segmentation_image
@@ -43,6 +44,7 @@ def evaluate_predicitions(prediction_results):
 
     all_predictions = np.concatenate(all_predictions_list)
     all_gt = np.concatenate(all_gt_list)
+
     precision, recall, f1_score, average_precision = compute_metrics(all_gt, all_predictions)
     eval_dict.update({
         f"eval/total/precision": precision,
@@ -50,7 +52,21 @@ def evaluate_predicitions(prediction_results):
         f"eval/total/f1_score": f1_score,
         f"eval/total/average_precision": average_precision,
     })
+    if wandb.run is not None:
+        pr_curve = make_precision_recall_curve_plot(all_gt, all_predictions)
+        eval_dict.update({
+            f"eval/total/precision_recall_curve": pr_curve,
+        })
     return eval_dict
+
+
+def make_precision_recall_curve_plot(gt, predictions):
+    # wandb.plot.pr_curve() expects the predictions to have the shape (*y_true.shape, num_classes)
+    # -> hack: we duplicate the array of shape (n,) into (n,2)
+    preds = np.stack([predictions, predictions], axis=1)
+    return wandb.plot.pr_curve(
+        gt, preds, classes_to_plot=[1], labels=['other', 'sandmine']
+    )
 
 def make_wandb_segmentation_masks(prediction_results):
     """
