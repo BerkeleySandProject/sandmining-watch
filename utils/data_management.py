@@ -19,15 +19,17 @@ def get_location_from_key(key: str):
     location = "_".join(key_splitted[:4])
     return location
 
-def get_annotation_path(key):
+def get_annotation_path(key, postfix=None):
     splitted = key.split("_")
     observation = "_".join(splitted[:4])
     image = "_".join(splitted[:5])
     # HACK. Need this to make annotion export to GCP work.
     # But this hack should not need to be necessary.
     # TODO: Fix problem at its root and remove the hack
-    #path = f"labels/{observation}/annotations/{image}_annotations.geojson"
-    path = f"labels/{observation}_median/annotations/{image}_annotations.geojson"
+    if postfix:
+        path = f"labels/{observation}_median/annotations/{image}_annotations{postfix}.geojson"
+    else:
+        path = f"labels/{observation}_median/annotations/{image}_annotations.geojson"
     return path
 
 def get_river_path(key, buffer_m):
