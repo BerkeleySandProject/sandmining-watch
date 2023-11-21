@@ -49,7 +49,7 @@ class SupervisedTrainingConfig:
     loss_fn: BackpropLossChoice
     batch_size: int
     learning_rate: float
-    dataset: DatasetChoice
+    datasets: DatasetChoice
     mine_class_loss_weight: float
 
 class FinetuningStratagyChoice(Enum):

@@ -76,7 +76,7 @@ BUCKET_NAME = "sand_mining_test"
 WANDB_PROJECT_NAME = "sandmine_detector"
 
 #To use river AOIs set this to TRUE
-USE_RIVER_AOIS = False
+USE_RIVER_AOIS = True
 
 #Use width of buffer for AOIs
 RIVER_BUFFER_M = '1000m'

@@ -24,8 +24,7 @@ import torch
 
 from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS, HARD_LABELS
 from experiment_configs.schemas import (
-    SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice, 
-    DatasetsConfig, LabelChoice, ConfidenceChoice
+    SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice,
 )
 from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS, N_EDGE_PIXELS_DISCARD
 from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice
@@ -36,18 +35,19 @@ from ml.augmentations import DEFAULT_AUGMENTATIONS
 from rasterio.features import rasterize, MergeAlg
 import geopandas as gpd
 
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING, Optional, List, Literal
 from shapely.geometry import Polygon
 
-def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
-    if config.datasets.images == DatasetChoice.S1S2:
+def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer, weights_class=True) -> Scene:
+    if config.datasets == DatasetChoice.S1S2:
         return create_scene_s1s2(
             config,
             s2_uri=observation.uri_to_s2,
             s1_uri=observation.uri_to_s1,
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
-            rivers_uri=observation.uri_to_rivers
+            rivers_uri=observation.uri_to_rivers,
+            weights_class=weights_class
         )
     elif config.datasets.images == DatasetChoice.S2:
         return create_scene_s2(
@@ -55,7 +55,8 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             s2_uri=observation.uri_to_s2,
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
-            rivers_uri=observation.uri_to_rivers
+            rivers_uri=observation.uri_to_rivers,
+            weights_class=weights_class
         )
     elif config.datasets.images == DatasetChoice.S2_L1C:
         return create_scene_s2(
@@ -63,28 +64,31 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             s2_uri=observation.uri_to_s2_l1c,
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
-            rivers_uri=observation.uri_to_rivers
+            rivers_uri=observation.uri_to_rivers,
+            weights_class=weights_class
         )
     else:
         raise ValueError("Unexped value for config.datasets")
 
-def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id, rivers_uri) -> Scene:
+def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id, rivers_uri, weights_class=True) -> Scene:
     s1s2_source = create_s1s2_multirastersource(config, s2_uri, s1_uri)
     scene = rastersource_with_labeluri_to_scene(
         s1s2_source,
         label_uri,
         scene_id,
-        rivers_uri
+        rivers_uri,
+        weights_class
     )
     return scene
 
-def create_scene_s2(config, s2_uri, label_uri, scene_id, rivers_uri) -> Scene:
+def create_scene_s2(config, s2_uri, label_uri, scene_id, rivers_uri, weights_class=True) -> Scene:
     s2_source = create_s2_image_source(config, s2_uri)
     scene = rastersource_with_labeluri_to_scene(
         s2_source,
         label_uri,
         scene_id,
-        rivers_uri
+        rivers_uri,
+        weights_class
     )
     return scene
 
@@ -135,7 +139,7 @@ def warn_if_nan_in_raw_raster(raster_source):
         if np.isnan(raw_image).any():
             print(f"WARNING: NaN in raw image {raster_source.uris}")
 
-def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_uri, scene_id, rivers_uri) -> Scene:
+def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_uri, scene_id, rivers_uri, weights_class=True) -> Scene:
     if label_uri is not None:
         vector_source = GeoJSONVectorSource(
             label_uri,
@@ -155,6 +159,11 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
     else:
         label_source = None
 
+    if weights_class:
+        scene_class = ThreeClassScene
+    else:
+        scene_class = Scene
+
     if rivers_uri is not None and USE_RIVER_AOIS: #create the aoi_polygons 
         river_vector_source = GeoJSONVectorSource(
                         rivers_uri,
@@ -163,9 +172,12 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
                         )
 
         aoi_polygons = river_vector_source.get_geoms()
-        scene = Scene(id=scene_id, raster_source=img_raster_source, label_source=label_source, aoi_polygons=aoi_polygons)    
+        scene = scene_class(id=scene_id, 
+                                raster_source=img_raster_source, 
+                                label_source=label_source, 
+                                aoi_polygons=aoi_polygons)    
     else:
-        scene = ThreeClassScene(id=scene_id, 
+        scene = scene_class(id=scene_id, 
                         raster_source=img_raster_source, 
                         label_source=label_source)
 
@@ -194,7 +206,7 @@ def sliding_filter_by_aoi(windows: List['Box'],
 
 def scene_to_validation_ds(config, scene: Scene):
     # No augementation and windows don't overlap. Use for validation during training time.
-    ds = SemanticSegmentationSlidingWindowGeoDatasetCustom(
+    ds = ThreeClassSemanticSegmentationSlidingWindowGeoDataset(
         scene=scene,
         ignore_aoi=False, # Filter windows by AOI 
         size=config.tile_size,
@@ -389,32 +401,39 @@ class ThreeClassSemanticSegmentationRandomWindowGeoDataset(RandomWindowGeoDatase
 class ThreeClassSemanticSegmentationSlidingWindowGeoDataset(SlidingWindowGeoDataset):
     def __init__(self, 
                  scene: Scene,
-                 out_size: Optional[Union[PosInt, Tuple[PosInt, PosInt]]],
-                 size_lims: Optional[Tuple[PosInt, PosInt]] = None,
-                 h_lims: Optional[Tuple[PosInt, PosInt]] = None,
-                 w_lims: Optional[Tuple[PosInt, PosInt]] = None,
+                 size: Union[PosInt, Tuple[PosInt, PosInt]],
+                 stride: Union[PosInt, Tuple[PosInt, PosInt]],
+                 ignore_aoi=False,
                  padding: Optional[Union[NonNegInt, Tuple[NonNegInt,
                                                           NonNegInt]]] = None,
-                 max_windows: Optional[NonNegInt] = None,
-                 max_sample_attempts: PosInt = 100,
-                 return_window: bool = False,
-                 efficient_aoi_sampling: bool = True,
+                 pad_direction: Literal['both', 'start', 'end'] = 'end',
                  transform: Optional[A.BasicTransform] = None,
                  normalize: bool = True,
                  to_pytorch: bool = True):
-        super().__init__(scene, out_size, size_lims, h_lims, w_lims, padding, 
-                         max_windows, max_sample_attempts, return_window, 
-                         efficient_aoi_sampling, transform, TransformType.noop, 
+        self.ignore_aoi = ignore_aoi
+        super().__init__(scene, size, stride, padding, pad_direction, transform, TransformType.noop, 
                          normalize, to_pytorch)
         self.transform = lambda inp: threeClassSemanticSegmentationTransformer(inp, transform)
         
+    def init_windows(self) -> None:
+        """Pre-compute windows."""
+        windows = self.scene.raster_source.extent.get_windows(
+            self.size,
+            stride=self.stride,
+            padding=self.padding,
+            pad_direction=self.pad_direction)
+        if len(self.scene.aoi_polygons_bbox_coords) > 0 and not self.ignore_aoi:
+            windows = Box.filter_by_aoi(windows,
+                                        self.scene.aoi_polygons_bbox_coords,
+                                        within=False)
+        self.windows = windows
+
     def __getitem__(self, idx: int):
         if idx >= len(self):
             raise StopIteration()
-        window = self.sample_window()
-        if self.return_window:
-            return (getDataSetItem(self, window), window)
+        window = self.windows[idx]
         return getDataSetItem(self, window)
+
 
 class SemanticSegmentationSlidingWindowGeoDatasetCustom(SemanticSegmentationSlidingWindowGeoDataset):
     """

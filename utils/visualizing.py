@@ -246,18 +246,17 @@ def show_windows(img, windows, title='', aoi_polygons=[]):
     plt.show()
 
 
-# from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset 
-from .rastervision_pipeline import SemanticSegmentationWithConfidenceRandomWindowGeoDataset, SemanticSegmentationWithConfidenceSlidingWindowGeoDataset
-def visualize_dataset(ds_list: List[GeoDataset], visualizer):
+from .rastervision_pipeline import ThreeClassSemanticSegmentationRandomWindowGeoDataset, ThreeClassSemanticSegmentationSlidingWindowGeoDataset
+def visualize_dataset(ds_list: List[GeoDataset]):
     for ds in ds_list:
         rgb_band_idx = [e.value for e in RGB_BANDS]
         img_rgb = raster_source_to_rgb(ds.scene.raster_source)
 
-        if isinstance(ds, SemanticSegmentationWithConfidenceRandomWindowGeoDataset):
+        if isinstance(ds, ThreeClassSemanticSegmentationRandomWindowGeoDataset):
             title = f"{ds.scene.id}, N={ds.max_windows}"
             windows = [ds.sample_window() for _ in range(ds.max_windows)]
         
-        elif isinstance(ds, SemanticSegmentationWithConfidenceSlidingWindowGeoDataset):
+        elif isinstance(ds, ThreeClassSemanticSegmentationSlidingWindowGeoDataset):
             title = f"{ds.scene.id}, N={len(ds.windows)}"
             windows = ds.windows
         else:

@@ -182,16 +182,16 @@ class BinarySegmentationLearner(ABC):
         return metric_names
 
     def train_step(self, batch, batch_ind):
-        x, y, c = batch
+        x, y, w = batch
         out = self.post_forward(self.model(x))
         # In the following, we hardcoded our metric names for our loss functions
-        return {"train_bce_loss": self.bce_loss(out, y, c),
+        return {"train_bce_loss": self.bce_loss(out, y, w),
                 "train_dice_loss": self.dice_loss(out, y)}
 
     def validate_step(self, batch, batch_ind):
-        x, y, c = batch
+        x, y, w = batch
         out = self.post_forward(self.model(x))
-        val_bce_loss = self.bce_loss(out, y, c)
+        val_bce_loss = self.bce_loss(out, y, w)
         val_dice_loss = self.dice_loss(out, y)
         out_probabilities = torch.sigmoid(out)
 
@@ -338,12 +338,12 @@ class BinarySegmentationLearner(ABC):
         num_samples = 0
         outputs = []
         with tqdm(self.train_dl, desc='Training') as bar:
-            for batch_ind, (x, y, c) in enumerate(bar):
+            for batch_ind, (x, y, w) in enumerate(bar):
                 x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                 y = self.to_device(y.float(), self.device)
-                c = self.to_device(c, self.device)
-                batch = (x, y, c)
+                w = self.to_device(w, self.device)
+                batch = (x, y, w)
                 optimizer.zero_grad()
                 output = self.train_step(batch, batch_ind)
 
@@ -376,12 +376,12 @@ class BinarySegmentationLearner(ABC):
         outputs = []
         with torch.inference_mode():
             with tqdm(dl, desc='Validating') as bar:
-                for batch_ind, (x, y, c) in enumerate(bar):
+                for batch_ind, (x, y, w) in enumerate(bar):
                     x = self.to_device(x, self.device)
                     # y must be a float to work with PyTorch's BCEWithLogitsLoss
                     y = self.to_device(y.float(), self.device)
-                    c = self.to_device(c, self.device)
-                    batch = (x, y, c)
+                    w = self.to_device(w, self.device)
+                    batch = (x, y, w)
                     output = self.validate_step(batch, batch_ind)
                     outputs.append(output)
                     num_samples += x.shape[0]
