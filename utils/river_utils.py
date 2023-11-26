@@ -9,6 +9,11 @@ from matplotlib_scalebar.scalebar import ScaleBar
 from shapely.geometry.point import Point
 from shapely.geometry import shape, Polygon
 from rasterio.features import geometry_mask
+import geopandas as gpd
+import matplotlib.pyplot as plt
+import numpy as np
+
+kms_per_radian = 6371.0088
 
 def check_multi_poly(gdf):
     return 'MULTI' in gdf.geometry.geom_type.unique()
@@ -164,3 +169,96 @@ def generate_aoi(raster_path:str, river_areas:gpd.GeoDataFrame, buffer_m=500,
         fig.show()
 
     return simplified_river_window
+
+
+def get_rivers_above(rivers_gdf: gpd.GeoDataFrame, boundary_gdf: gpd.GeoDataFrame = None, subset_above_length_km=50.0):
+    """
+    Given a geopandas dataframe containing rivers and a geopandas dataframe containing a boundary, this function
+    returns a geopandas dataframe containing only the rivers that are within the boundary and are above a certain
+    length
+    :param rivers_gdf: A geopandas dataframe containing rivers
+    :param boundary_pdf: A geopandas dataframe containing a boundary
+    :param subset_above_length_km: A float containing the minimum length of rivers to keep
+    :return: A geopandas dataframe containing the rivers that are within the boundary and are above a certain length
+    """
+
+    # Clip the rivers to the boundary
+
+    if boundary_gdf is not None:
+        rivers_gdf = rivers_gdf.clip(boundary_gdf)
+
+    # Make sure the rivers are in a UTM crs so it's in meters
+    rivers_subset = rivers_gdf.to_crs(rivers_subset.estimate_utm_crs())
+
+    # Filter the rivers to only those above a certain length
+    rivers_subset['river_length_m'] = rivers_subset.geometry.length
+    #sort rivers by length in descending order
+    rivers_subset = rivers_subset.sort_values(by='river_length_m', ascending=False)
+    rivers_above_km = rivers_subset[rivers_subset.river_length_m > subset_above_length_km*1000.].copy().to_crs(rivers_gdf.crs) #go back to WGS84
+
+    return rivers_above_km
+
+
+def cluster_observations(gdf: gpd.GeoDataFrame, min_cluster_size=2, max_cluster_size=5,maximum_cluster_radius_km=None):
+    """
+    Given a geopandas dataframe containing observations, this function clusters the observations using HDBSCAN
+    
+    :param gdf: A geopandas dataframe containing observations
+    :param min_cluster_size: The minimum number of points in a cluster
+    :param max_cluster_size: The maximum number of points in a cluster
+    :param maximum_cluster_radius_km: The maximum radius of a cluster in kilometers -> this is the epsilon parameter in HDBSCAN
+    :return: A geopandas dataframe containing the observations and a column containing the cluster id
+    """
+
+    from sklearn.cluster import HDBSCAN  #requires scikit-learn 1.3.2+
+
+    #drop all rows with NaNs in geometry
+    gdf = gdf.dropna(subset=['geometry'])
+    
+    coords = np.array([gdf.geometry.y, gdf.geometry.x]).T
+
+    if maximum_cluster_radius_km is not None:
+        epsilon = maximum_cluster_radius_km / kms_per_radian
+    else:
+        epsilon = 0.
+
+    hdb = HDBSCAN(min_cluster_size=2, metric='haversine',cluster_selection_epsilon=epsilon, max_cluster_size=5)\
+        .fit(np.radians(coords))
+
+    count = 0
+
+    gdf['cluster_id'] = -99
+    for i, cluster in enumerate(hdb.labels_):
+        gdf['cluster_id'].iloc[i] = cluster
+        if cluster == -1:
+            count += 1
+
+    print('Number of clusters: {} / Number of unassigned points : {}'.format(len(set(hdb.labels_)), count))
+
+    return gdf
+
+def visualize_clusters(gdf: gpd.GeoDataFrame, rivers_gdf:gpd.GeoDataFrame, background_gdfs=[]):
+
+    #Keep only the rivers from the rivers_gdf that are aligned with the observations in gdf
+    gdf_sample_buffer = gdf.copy()
+    gdf_sample_buffer['geometry'] = gdf.buffer(0.05)
+
+    # Perform the spatial join with the buffered points
+    rivers_sample = gpd.sjoin(rivers_gdf, gdf_sample_buffer, how="inner")
+
+    fig, ax = plt.subplots(figsize=[15, 15])
+    for i, background in enumerate(background_gdfs):
+        cm = 'tab20'
+        background.plot(ax=ax, cmap=cm, alpha=0.3)
+
+    rivers_sample.plot(ax=ax, linewidth=2.5, color='blue', facecolor='blue' )
+    gdf.plot(ax=ax, column='cluster_id', legend=False, cmap='Paired', markersize=200, edgecolor='black', marker='o', alpha=0.6)
+
+
+    # Annotate the cluster_id over every point in gdf_sample
+    for x, y, label in zip(gdf.geometry.x, gdf.geometry.y, gdf.cluster_id):
+        ax.annotate(label, xy=(x, y), xytext=(-3, -3), textcoords="offset points")
+
+
+    plt.show()
+
