@@ -222,7 +222,7 @@ def cluster_observations(gdf: gpd.GeoDataFrame, min_cluster_size=2, max_cluster_
     else:
         epsilon = 0.
 
-    hdb = HDBSCAN(min_cluster_size=2, metric='haversine',cluster_selection_epsilon=epsilon, max_cluster_size=5)\
+    hdb = HDBSCAN(min_cluster_size=min_cluster_size, metric='haversine',cluster_selection_epsilon=epsilon, max_cluster_size=max_cluster_size)\
         .fit(np.radians(coords))
 
     count = 0
@@ -237,21 +237,23 @@ def cluster_observations(gdf: gpd.GeoDataFrame, min_cluster_size=2, max_cluster_
 
     return gdf
 
-def visualize_clusters(gdf: gpd.GeoDataFrame, rivers_gdf:gpd.GeoDataFrame, background_gdfs=[]):
+def visualize_clusters(gdf: gpd.GeoDataFrame, rivers_gdf:gpd.GeoDataFrame = None, background_gdfs=[]):
 
     #Keep only the rivers from the rivers_gdf that are aligned with the observations in gdf
     gdf_sample_buffer = gdf.copy()
     gdf_sample_buffer['geometry'] = gdf.buffer(0.05)
 
-    # Perform the spatial join with the buffered points
-    rivers_sample = gpd.sjoin(rivers_gdf, gdf_sample_buffer, how="inner")
 
     fig, ax = plt.subplots(figsize=[15, 15])
     for i, background in enumerate(background_gdfs):
         cm = 'tab20'
         background.plot(ax=ax, cmap=cm, alpha=0.3)
 
-    rivers_sample.plot(ax=ax, linewidth=2.5, color='blue', facecolor='blue' )
+    # Perform the spatial join with the buffered points
+    if rivers_gdf is not None:
+        rivers_sample = gpd.sjoin(rivers_gdf, gdf_sample_buffer, how="inner")
+        rivers_sample.plot(ax=ax, linewidth=2.5, color='blue', facecolor='blue' )
+
     gdf.plot(ax=ax, column='cluster_id', legend=False, cmap='Paired', markersize=200, edgecolor='black', marker='o', alpha=0.6)
 
 
