@@ -51,6 +51,7 @@ class SupervisedTrainingConfig:
     learning_rate: float
     datasets: DatasetChoice
     mine_class_loss_weight: float
+    uncertain_class_weight: float
 
 class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen

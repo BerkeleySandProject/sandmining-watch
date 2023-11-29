@@ -38,7 +38,7 @@ import geopandas as gpd
 from typing import TYPE_CHECKING, Optional, List, Literal
 from shapely.geometry import Polygon
 
-def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer, weights_class=True) -> Scene:
+def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
     if config.datasets == DatasetChoice.S1S2:
         return create_scene_s1s2(
             config,
@@ -47,7 +47,7 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers,
-            weights_class=weights_class
+            low_conf_weight=config.uncertain_class_weight,
         )
     elif config.datasets.images == DatasetChoice.S2:
         return create_scene_s2(
@@ -56,7 +56,7 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers,
-            weights_class=weights_class
+            low_conf_weight=config.uncertain_class_weight,
         )
     elif config.datasets.images == DatasetChoice.S2_L1C:
         return create_scene_s2(
@@ -65,30 +65,30 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers,
-            weights_class=weights_class
+            low_conf_weight=config.uncertain_class_weight,
         )
     else:
         raise ValueError("Unexped value for config.datasets")
 
-def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id, rivers_uri, weights_class=True) -> Scene:
+def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id, rivers_uri, low_conf_weight) -> Scene:
     s1s2_source = create_s1s2_multirastersource(config, s2_uri, s1_uri)
     scene = rastersource_with_labeluri_to_scene(
         s1s2_source,
         label_uri,
         scene_id,
         rivers_uri,
-        weights_class
+        low_conf_weight
     )
     return scene
 
-def create_scene_s2(config, s2_uri, label_uri, scene_id, rivers_uri, weights_class=True) -> Scene:
+def create_scene_s2(config, s2_uri, label_uri, scene_id, rivers_uri, low_conf_weight) -> Scene:
     s2_source = create_s2_image_source(config, s2_uri)
     scene = rastersource_with_labeluri_to_scene(
         s2_source,
         label_uri,
         scene_id,
         rivers_uri,
-        weights_class
+        low_conf_weight
     )
     return scene
 
@@ -139,7 +139,7 @@ def warn_if_nan_in_raw_raster(raster_source):
         if np.isnan(raw_image).any():
             print(f"WARNING: NaN in raw image {raster_source.uris}")
 
-def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_uri, scene_id, rivers_uri, weights_class=True) -> Scene:
+def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_uri, scene_id, rivers_uri, low_conf_weight) -> Scene:
     if label_uri is not None:
         vector_source = GeoJSONVectorSource(
             label_uri,
@@ -150,7 +150,7 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
             ]
         )
         label_source = SemanticSegmentationLabelSource(
-            RasterizedSource(
+            ConfidenceLabelSource(
                 vector_source,
                 background_class_id=CLASS_CONFIG.null_class_id,
                 bbox=img_raster_source.bbox), 
@@ -158,11 +158,6 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
         )
     else:
         label_source = None
-
-    if weights_class:
-        scene_class = ThreeClassScene
-    else:
-        scene_class = Scene
 
     if rivers_uri is not None and USE_RIVER_AOIS: #create the aoi_polygons 
         river_vector_source = GeoJSONVectorSource(
@@ -172,14 +167,16 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
                         )
 
         aoi_polygons = river_vector_source.get_geoms()
-        scene = scene_class(id=scene_id, 
+        scene = TwoClassScene(id=scene_id, 
                                 raster_source=img_raster_source, 
-                                label_source=label_source, 
+                                label_source=label_source,
+                                low_confidence_weight=low_conf_weight,
                                 aoi_polygons=aoi_polygons)    
     else:
-        scene = scene_class(id=scene_id, 
+        scene = TwoClassScene(id=scene_id, 
                         raster_source=img_raster_source, 
-                        label_source=label_source)
+                        label_source=label_source,
+                        low_confidence_weight=low_conf_weight)
 
     return scene
 
@@ -206,7 +203,7 @@ def sliding_filter_by_aoi(windows: List['Box'],
 
 def scene_to_validation_ds(config, scene: Scene):
     # No augementation and windows don't overlap. Use for validation during training time.
-    ds = ThreeClassSemanticSegmentationSlidingWindowGeoDataset(
+    ds = TwoClassSemanticSegmentationSlidingWindowGeoDataset(
         scene=scene,
         ignore_aoi=False, # Filter windows by AOI 
         size=config.tile_size,
@@ -287,7 +284,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     # n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 2    
     # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
     n_windows = 10
-    ds = ThreeClassSemanticSegmentationRandomWindowGeoDataset(
+    ds = TwoClassSemanticSegmentationRandomWindowGeoDataset(
         scene,
         out_size=(config.tile_size, config.tile_size),
         # Setting size_lims=(size,size+1) seems weird, but it actually leads to all windows having the same size
@@ -303,23 +300,103 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     )
     #override the sample_window method and within_aoi method
     ds.aoi_centroids = aoi_centroids
-    ds.sample_window = custom_sample_window.__get__(ds, ThreeClassSemanticSegmentationRandomWindowGeoDataset)
+    ds.sample_window = custom_sample_window.__get__(ds, TwoClassSemanticSegmentationRandomWindowGeoDataset)
     return ds
 
-class ThreeClassScene(Scene):
+def geoms_to_conf_labels(df: gpd.GeoDataFrame, window: 'Box',
+                    background_class_id: int, all_touched: bool,
+                    extent: 'Box') -> np.ndarray:
+    """Rasterize geometries that intersect with the window."""
+    if len(df) == 0:
+        return np.full(window.size, background_class_id, dtype=np.float32)
+
+    window_geom = window.to_shapely()
+
+    # subset to shapes that intersect window
+    df_int = df[df.intersects(window_geom)]
+    # transform to window frame of reference
+    shapes = df_int.translate(xoff=-window.xmin, yoff=-window.ymin)
+    # confidence of each shape
+    confidence_map = {"Low": 1, "High": 2}
+    confidences = df_int["Confidence"].map(confidence_map)
+
+    if len(shapes) > 0:
+        rasters = []
+        #iterate over each geometry in df_int, and rasterize it
+        for i in range(len(df_int)):
+            # print(i,shapes.iloc[i], class_ids.iloc[i])
+            raster = rasterize(
+                        shapes = [(shapes.iloc[i], confidences.iloc[i])],
+                        out_shape = window.size,
+                        fill = background_class_id,
+                        all_touched=all_touched)
+            # print(raster)
+            rasters.append(raster)  
+        #Now merge the rasters such that the maximum value is taken for each pixel
+        raster = np.maximum.reduce(rasters)
+        # Change values so that High is 1 and Low is 2
+        raster[raster == 1] = 3
+        raster[raster == 2] = 1
+        raster[raster == 3] = 2
+    else:
+        raster = np.full(window.size, background_class_id, dtype=np.float32)
+    return raster
+
+class ConfidenceLabelSource(RasterizedSource):
+    def __init__(self,
+                 vector_source: 'VectorSource',
+                 background_class_id: int,
+                 bbox: Optional['Box'] = None,
+                 all_touched: bool = False,
+                 raster_transformers: List['RasterTransformer'] = []):
+        super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
+    
+    def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
+        """Return the chip located in the window.
+
+        Polygons falling within the window are rasterized using the class_id, and
+        the background is filled with background_class_id. Also, any pixels in the
+        window outside the extent are zero, which is the don't-care class for
+        segmentation.
+
+        Args:
+            window: Box
+
+        Returns:
+            [height, width, channels] numpy array
+        """
+        # log.debug(f'Rasterizing window: {window}')
+        chip = geoms_to_conf_labels(
+            self.df,
+            window,
+            background_class_id=self.background_class_id,
+            extent=self.extent,
+            all_touched=self.all_touched)
+        return np.expand_dims(chip, 2)
+
+
+class TwoClassScene(Scene):
     def __init__(self,
                  id: str,
                  raster_source: 'RasterSource',
                  label_source: Optional['LabelSource'] = None,
+                 low_confidence_weight: float = 0.,
                  label_store = None,
                  aoi_polygons: Optional[List['BaseGeometry']] = None):
         super().__init__(id, raster_source, label_source, label_store, aoi_polygons)
+        self.low_confidence_weight = low_confidence_weight
     
     def __getitem__(self, key: Any) -> Tuple[Any, Any]:
-        x, y = super().__getitem__(key)
-        w = y.copy()
-        w[y == 2] = 0
-        w[y != 2] = 1
+        x = self.raster_source[key]
+        if self.label_source is not None:
+            w = self.label_source[key]
+            y = np.zeros_like(w)
+            y[w != 0] = 1
+            w = w.astype(float)
+            w[w == 0] = 1
+            w[w == 2] = self.low_confidence_weight
+        else:
+            y, w = None, w
         return x, y, w
     
 def threeClassSemanticSegmentationTransformer(
@@ -368,7 +445,7 @@ def getDataSetItem(dataset, key):
 
     return x, y, w
 
-class ThreeClassSemanticSegmentationRandomWindowGeoDataset(RandomWindowGeoDataset):
+class TwoClassSemanticSegmentationRandomWindowGeoDataset(RandomWindowGeoDataset):
     def __init__(self, 
                  scene: Scene,
                  out_size: Optional[Union[PosInt, Tuple[PosInt, PosInt]]],
@@ -398,7 +475,7 @@ class ThreeClassSemanticSegmentationRandomWindowGeoDataset(RandomWindowGeoDatase
             return (getDataSetItem(self, window), window)
         return getDataSetItem(self, window)
     
-class ThreeClassSemanticSegmentationSlidingWindowGeoDataset(SlidingWindowGeoDataset):
+class TwoClassSemanticSegmentationSlidingWindowGeoDataset(SlidingWindowGeoDataset):
     def __init__(self, 
                  scene: Scene,
                  size: Union[PosInt, Tuple[PosInt, PosInt]],
