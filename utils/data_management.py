@@ -5,6 +5,10 @@ from .schemas import ObservationPointer
 from .gcp_utils import list_files_in_bucket_with_suffix, list_files_in_bucket_with_prefix, get_public_url
 from project_config import RIVER_BUFFER_M
 
+from project_config import CLASS_CONFIG
+import numpy as np
+
+
 def get_date_from_key(key: str):
     # Example: From "Sone_Rohtas_84-21_24-91_2022-03-01_rgb_jhjhfhdd" this function returns a the datetime 2022-03-01 00:00:00
 
@@ -121,10 +125,16 @@ def _observation_factory_old(gcp_client, river_buffer='1000m') -> List[Observati
             )
             yield observation
 
-def generate_observation_pointer(annotation_path:str, global_key:str, cluster_id:int) -> ObservationPointer:
+def generate_observation_pointer(annotation_path_provided:str, global_key:str, cluster_id:int) -> ObservationPointer:
+# def generate_observation_pointer(global_key:str, cluster_id:int) -> ObservationPointer:
     """
     This function generates an ObservationPointer from an annotation path.
+    annotation_path_provided: this is the path to the annotation file provided by the user -> can include any kind of postfix, e.g. '_3class.geojson'
+    global_key: this is the labelbox global key, e.g. 'Sone_Rohtas_84-21_24-91_2022-03-01'
     """
+
+    annotation_path = get_annotation_path(global_key) #this is the 'clean' annotation path, i.e. w/o any postfix
+
     s2_l2a_path = annotations_path_to_s2_l2a(annotation_path)
     s2_l1c_path = annotations_path_to_s2_l1c(annotation_path)
     s1_path = annotations_path_to_s1(annotation_path)
@@ -136,7 +146,7 @@ def generate_observation_pointer(annotation_path:str, global_key:str, cluster_id
         uri_to_s2=get_public_url(s2_l2a_path),
         uri_to_s2_l1c=get_public_url(s2_l1c_path),
         uri_to_rgb=get_public_url(rgb_path),
-        uri_to_annotations=get_public_url(annotation_path),
+        uri_to_annotations=get_public_url(annotation_path_provided),
         uri_to_rivers=get_public_url(rivers_path),
         name=path_to_observatation_key(s2_l2a_path),
         cluster_id=cluster_id,
@@ -151,6 +161,8 @@ def observation_factory(dataset_json) -> List[ObservationPointer]:
     This functions yields all annoted observations in the GCP bucket, prestored in the dataset_*.json file
     """ 
     #iterate over json file and create ObservationPointer
+
+    
 
     for observation in dataset_json:
         observation = ObservationPointer(
@@ -195,4 +207,108 @@ def all_observations_for_location(gcp_client, location_key, river_buffer='1000m'
             name=path_to_observatation_key(s2_l2a_path)
         )
         yield observation
+
+
+from rastervision.core.data import Scene
+import rasterio.features
+
+class_mine_id = CLASS_CONFIG.get_class_id('sandmine')
+class_nonmine_id = CLASS_CONFIG.get_class_id('other')
+
+def calc_class_proportion(labels):
+    mask_mine = (labels == class_mine_id)
+    mask_nonmine = (labels == class_nonmine_id)
+
+    count_mine = np.sum(mask_mine)
+    count_nonemine = np.sum(mask_nonmine)
+    count_total = len(labels)
+
+    assert count_total == count_mine + count_nonemine
+    mine_percentage = count_mine/count_total * 100
+    # nonmine_percentage = count_nonemine/count_total * 100
+    return mine_percentage, count_mine
+
+
+def characterize_dataset(training_scenes: Scene, validation_scenes: Scene):
+
+    """
+    
+    """
+
+
+    labels_train_raveled = []
+    labels_val_raveled = []
+    label_in_aoi_raveled = []
+    label_outside_aoi_raveled = []
+
+    for scene in training_scenes:
+
+        label_arr = scene.label_source.get_label_arr()
+        label_arr_raveled = label_arr.ravel()
+        mask = rasterio.features.rasterize(scene.aoi_polygons, label_arr.shape)
+        mask_raveled = mask.ravel()
+
+        label_in_aoi_raveled.append(
+            label_arr_raveled[mask_raveled != 0]
+        )
+        label_outside_aoi_raveled.append(
+            label_arr_raveled[mask_raveled == 0]
+        )
+        
+        labels_train_raveled.append(label_arr_raveled)
+
+
+
+    for scene in validation_scenes:
+            
+        label_arr = scene.label_source.get_label_arr()
+        label_arr_raveled = label_arr.ravel()
+        mask = rasterio.features.rasterize(scene.aoi_polygons, label_arr.shape)
+        mask_raveled = mask.ravel()
+
+        label_in_aoi_raveled.append(
+            label_arr_raveled[mask_raveled != 0]
+        )
+        label_outside_aoi_raveled.append(
+            label_arr_raveled[mask_raveled == 0]
+        )
+        
+        labels_val_raveled.append(label_arr_raveled)
+
+    all_labels_outside_aoi = np.hstack(label_outside_aoi_raveled)
+    all_labels_aoi = np.hstack(label_in_aoi_raveled)
+    all_labels_train = np.hstack(labels_train_raveled)
+    all_labels_val = np.hstack(labels_val_raveled)
+
+    mine_percentage, _ = calc_class_proportion(np.hstack([all_labels_train, all_labels_val]))
+    print(f"Total dataset has {mine_percentage:.2f}%  mining area.")
+
+    mine_percentage, _ = calc_class_proportion(all_labels_train)
+    print(f"Training dataset has {mine_percentage:.2f}%  mining area.")
+
+    mine_percentage, _ = calc_class_proportion(all_labels_val)
+    print(f"Validation dataset has {mine_percentage:.2f}%  mining area.")
+
+    mine_percentage_aoi, _ = calc_class_proportion(all_labels_aoi)
+    print(f"Within AOIs, total dataset has {mine_percentage_aoi:.2f}%  mining area.")
+
+    mine_percentage, _ = calc_class_proportion(all_labels_outside_aoi)
+    print(f"Outside AOIs, total dataset has {mine_percentage:.2f}%  mining area.")
+
+    mine_percentage_per_observation = []
+    n_mine_pixels_per_observation = []
+    labels_full_dataset_raveled = [*labels_train_raveled, *labels_val_raveled]
+    for labels_of_observation in labels_full_dataset_raveled:
+        mine_percentage_this_observation, n_mine_pixels_this_observation = calc_class_proportion(labels_of_observation)
+        mine_percentage_per_observation.append(mine_percentage_this_observation)
+        n_mine_pixels_per_observation.append(n_mine_pixels_this_observation)
+
+
+    print(f"\nThe median percentage of mine in an observation is {np.mean(mine_percentage_per_observation):.2f}%")
+    print(f"The median number of mine pixels in an observation is {np.mean(n_mine_pixels_per_observation):.0f}\n")
+
+    n_total_pixels_per_observations = [len(labels_single_observation) for labels_single_observation in labels_full_dataset_raveled]
+    print(f"The median number pixels in an observation is {np.mean(n_total_pixels_per_observations):.0f}")
+
+    return mine_percentage_aoi
 
