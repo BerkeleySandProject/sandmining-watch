@@ -1,25 +1,34 @@
 from enum import Enum
+from experiment_configs.annotation_configs import two_class_config, three_class_config
 
-from rastervision.core.data import ClassConfig
-CLASS_NAME = 'sandmine'
-CLASS_CONFIG = ClassConfig(
-    colors=['grey', 'red'],
-    names=['other', CLASS_NAME],
-    null_class='other'
-) 
+# Annotation stuff
+# Set either 2-class of 3-class config as the annotation config
 
-from split import training_locations, validation_locations
-def is_training(observation_key:str):
-    for training_location in training_locations:
-        if observation_key.startswith(training_location):
-            return True
-    return False
+ANNO_CONFIG = two_class_config # or 
+# ANNO_CONFIG = three_class_config
 
-def is_validation(observation_key:str):
-    for validation_location in validation_locations:
-        if observation_key.startswith(validation_location):
-            return True
-    return False
+#Set global variables
+CLASS_CONFIG = ANNO_CONFIG.class_config
+LABELBOX_PROJECT_ID = ANNO_CONFIG.labelbox_project_id
+
+if ANNO_CONFIG.num_classes == 2:
+    CLASS_NAME = 'sandmine'
+else:
+    CLASS_NAME = None #this should trigger an error wherever 3-class annotations rely on this    
+
+
+# from split import training_locations, validation_locations
+# def is_training(observation_key:str):
+#     for training_location in training_locations:
+#         if observation_key.startswith(training_location):
+#             return True
+#     return False
+
+# def is_validation(observation_key:str):
+#     for validation_location in validation_locations:
+#         if observation_key.startswith(validation_location):
+#             return True
+#     return False
 
 
 # Band order in _s1.tif ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']
@@ -43,8 +52,10 @@ class S2Band(Enum):
 
 RGB_BANDS = [S2Band.B4, S2Band.B3, S2Band.B2]
 
-# Labelbox
-LABELBOX_PROJECT_ID = "cllbeyixh0bxt07uxfvg977h3"
+
+
+
+#Storage stuff
 
 # Google Cloud Platform
 GCP_PROJECT_NAME = "gee-sand"

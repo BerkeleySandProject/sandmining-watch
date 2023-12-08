@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
-
+from rastervision.core.data import ClassConfig
 
 class ModelChoice(Enum):
     UnetSmall = "unet-small"
@@ -61,3 +61,18 @@ class FinetuningStratagyChoice(Enum):
 class SupervisedFinetuningCofig(SupervisedTrainingConfig):
     finetuning_strategy: FinetuningStratagyChoice
     encoder_weights_path: Optional[bool]
+
+
+## Annotation stuff
+class AnnotationType(Enum):
+    TWO_ClASS = "2class"
+    THREE_CLASS = "3class"
+
+@dataclass
+class AnnotationConfig:
+    type: AnnotationType
+    class_config: ClassConfig
+    num_classes: int
+    labelbox_project_id: str
+    postfix: Optional[str] = None # needed when finding the GCP annotations path. by default 2_class doesnt need this
+
