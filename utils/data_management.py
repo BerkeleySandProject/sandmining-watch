@@ -181,32 +181,32 @@ def observation_factory(dataset_json) -> List[ObservationPointer]:
         yield observation
 
 
-def all_observations_for_location(gcp_client, location_key, river_buffer='1000m') -> List[ObservationPointer]:
-    """
-    This functions yields all data for a location WITHOUT annotations
-    """
+# def all_observations_for_location(gcp_client, location_key, river_buffer='1000m') -> List[ObservationPointer]:
+#     """
+#     This functions yields all data for a location WITHOUT annotations
+#     """
     
-    path_to_s2_l1c_data_in_bucket = f"labels/{location_key}_median/s2_l1c"
-    for blob_to_s2_l1c in list_files_in_bucket_with_prefix(gcp_client, path_to_s2_l1c_data_in_bucket):
+#     path_to_s2_l1c_data_in_bucket = f"labels/{location_key}_median/s2_l1c"
+#     for blob_to_s2_l1c in list_files_in_bucket_with_prefix(gcp_client, path_to_s2_l1c_data_in_bucket):
 
-        # Create a dummy annotatations path. This is how the path the .geojson which annotations would look like, if it exists.
-        fake_annotations_path = blob_to_s2_l1c.name.replace("s2_l1c", "annotations").replace(".tif", ".geojson")
+#         # Create a dummy annotatations path. This is how the path the .geojson which annotations would look like, if it exists.
+#         fake_annotations_path = blob_to_s2_l1c.name.replace("s2_l1c", "annotations").replace(".tif", ".geojson")
         
-        s2_l2a_path = annotations_path_to_s2_l2a(fake_annotations_path)
-        s1_path = annotations_path_to_s1(fake_annotations_path)
-        rgb_path = annotations_path_to_rgb(fake_annotations_path)
-        rivers_path = annotations_path_to_rivers(fake_annotations_path, river_buffer)
+#         s2_l2a_path = annotations_path_to_s2_l2a(fake_annotations_path)
+#         s1_path = annotations_path_to_s1(fake_annotations_path)
+#         rgb_path = annotations_path_to_rgb(fake_annotations_path)
+#         rivers_path = annotations_path_to_rivers(fake_annotations_path, river_buffer)
 
-        observation = ObservationPointer(
-            uri_to_s1=get_public_url(s1_path),
-            uri_to_s2=get_public_url(s2_l2a_path),
-            uri_to_s2_l1c=get_public_url(blob_to_s2_l1c.name),
-            uri_to_rgb=get_public_url(rgb_path),
-            uri_to_annotations=None,
-            uri_to_rivers=get_public_url(rivers_path),
-            name=path_to_observatation_key(s2_l2a_path)
-        )
-        yield observation
+#         observation = ObservationPointer(
+#             uri_to_s1=get_public_url(s1_path),
+#             uri_to_s2=get_public_url(s2_l2a_path),
+#             uri_to_s2_l1c=get_public_url(blob_to_s2_l1c.name),
+#             uri_to_rgb=get_public_url(rgb_path),
+#             uri_to_annotations=None,
+#             uri_to_rivers=get_public_url(rivers_path),
+#             name=path_to_observatation_key(s2_l2a_path)
+#         )
+#         yield observation
 
 
 from rastervision.core.data import Scene
