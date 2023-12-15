@@ -8,10 +8,10 @@ from utils.wandb_utils import create_semantic_segmentation_image
 from project_config import N_EDGE_PIXELS_DISCARD
 
 
-def evaluate_predicitions(prediction_results):
+def evaluate_predictions(prediction_results):
     """
     Expects prediction_results to be a list of dictionaries. Each dictonary is expected
-    to have the keys 'predictions', 'ground_truth' and 'name'
+    to have the keys 'predictions', 'ground_truth', 'name' and 'crop_sz' (in pixels).
     """
     all_predictions_list = []
     all_gt_list = []
@@ -21,9 +21,11 @@ def evaluate_predicitions(prediction_results):
         # We discard the edge pixels in each observation. This ensures that 
         # results are comparable, even if the window size is different.
         # (But N_EDGE_PIXELS_DISCARD needs to remain consistent)
-        prediction = center_crop(prediction_result_dict['predictions']).ravel()
-        gt = center_crop(prediction_result_dict['ground_truth']).ravel()
+        prediction = center_crop(prediction_result_dict['predictions'], prediction_result_dict['crop_sz']).ravel()
+        gt = center_crop(prediction_result_dict['ground_truth'], prediction_result_dict['crop_sz']).ravel()
         observation_name = prediction_result_dict['name']
+        #also crop the rgb image so that the dimensions match with predictions and gt
+        prediction_result_dict['rgb_img'] = center_crop(prediction_result_dict['rgb_img'], prediction_result_dict['crop_sz'])
 
         all_predictions_list.append(prediction)
         all_gt_list.append(gt)
@@ -34,23 +36,27 @@ def evaluate_predicitions(prediction_results):
             # because we will have no true positives.
             continue
 
-        precision, recall, f1_score, average_precision = compute_metrics(gt, prediction)
+        precision, recall, f1_score, average_precision, best_threshold, best_f1_score = compute_metrics(gt, prediction)
         eval_dict.update({
             f"eval/{observation_name}/precision": precision,
             f"eval/{observation_name}/recall": recall,
             f"eval/{observation_name}/f1_score": f1_score,
             f"eval/{observation_name}/average_precision": average_precision,
+            f"eval/{observation_name}/best_threshold": best_threshold,
+            f"eval/{observation_name}/best_f1_score": best_f1_score,
         })
 
     all_predictions = np.concatenate(all_predictions_list)
     all_gt = np.concatenate(all_gt_list)
 
-    precision, recall, f1_score, average_precision = compute_metrics(all_gt, all_predictions)
+    precision, recall, f1_score, average_precision, best_threshold, best_f1_score = compute_metrics(all_gt, all_predictions)
     eval_dict.update({
         f"eval/total/precision": precision,
         f"eval/total/recall": recall,
         f"eval/total/f1_score": f1_score,
         f"eval/total/average_precision": average_precision,
+        f"eval/total/best_threshold": best_threshold,
+        f"eval/total/best_f1_score": best_f1_score,
     })
     if wandb.run is not None:
         pr_curve = make_precision_recall_curve_plot(all_gt, all_predictions)
@@ -68,7 +74,7 @@ def make_precision_recall_curve_plot(gt, predictions):
         gt, preds, classes_to_plot=[1], labels=['other', 'sandmine']
     )
 
-def make_wandb_segmentation_masks(prediction_results):
+def make_wandb_segmentation_masks(prediction_results, threshold=0.5):
     """
     Returns list of wandb.Image. Background is RGB image + ground truth and prediction mask.
 
@@ -78,8 +84,8 @@ def make_wandb_segmentation_masks(prediction_results):
     def prediction_results_to_wandb_mask(input):
         return create_semantic_segmentation_image(
             background_image=center_crop(input['rgb_img']),
-            predicted_mask=center_crop(input['predictions']) > 0.5,
-            ground_truth_mask=input['ground_truth'],
+            predicted_mask=center_crop(input['predictions']) >= threshold,
+            ground_truth_mask=center_crop(input['ground_truth']),
             image_title=input['name']
         )    
     return list(map(prediction_results_to_wandb_mask, prediction_results))
@@ -105,17 +111,68 @@ def center_crop(array, n_crop_pixels=N_EDGE_PIXELS_DISCARD):
     return array[n_crop_pixels:-n_crop_pixels, n_crop_pixels:-n_crop_pixels]
 
 def compute_metrics(ground_truth, predicted_prob):
-    predicted_class = predicted_prob > 0.5
 
-    TP = ((predicted_class == 1) & (ground_truth == 1)).sum()  # True Positives
-    FP = ((predicted_class == 1) & (ground_truth == 0)).sum()  # False Positives
-    FN = ((predicted_class == 0) & (ground_truth == 1)).sum()  # False Negatives
-    TN = ((predicted_class == 0) & (ground_truth == 0)).sum()  # True Negatives
+    valid_mask = ~np.isnan(predicted_prob)  # Create a mask for valid (non-nan) values
+
+    # print("Number of valid pixels: ",valid_mask.sum())
+
+    # Apply the mask to ground_truth and predicted_prob
+    valid_ground_truth = ground_truth[valid_mask]
+    valid_predicted_prob = predicted_prob[valid_mask]
+
+    predicted_class = valid_predicted_prob > 0.5
+
+    TP = ((predicted_class == 1) & (valid_ground_truth == 1)).sum()  # True Positives
+    FP = ((predicted_class == 1) & (valid_ground_truth == 0)).sum()  # False Positives
+    FN = ((predicted_class == 0) & (valid_ground_truth == 1)).sum()  # False Negatives
+    TN = ((predicted_class == 0) & (valid_ground_truth == 0)).sum()  # True Negatives
 
     precision = TP / (TP + FP)
     recall = TP / (TP + FN)
     f1_score = 2 * (precision * recall) / (precision + recall)
 
-    average_precision = average_precision_score(ground_truth, predicted_prob)
+    precisions_t, recalls_t, thresholds = precision_recall_curve(valid_ground_truth, valid_predicted_prob)
+    f1_scores_t = 2 * (precisions_t * recalls_t) / (precisions_t + recalls_t)
 
-    return precision, recall, f1_score, average_precision
+    average_precision = average_precision_score(valid_ground_truth, valid_predicted_prob)
+
+    # locate the index of the largest f score
+    ix = np.argmax(f1_scores_t)
+    print('Best Threshold=%f, Best F1 Score=%.3f' % (thresholds[ix], f1_scores_t[ix]))
+
+    return precision, recall, f1_score, average_precision, thresholds[ix], f1_scores_t[ix]
+
+
+import rasterio, os
+from rasterio.transform import from_origin
+
+def save_mask_as_geotiff(mask, transform, crs, filename):
+    with rasterio.open(
+        filename,
+        'w',
+        driver='GTiff',
+        height=mask.shape[0],
+        width=mask.shape[1],
+        count=1,
+        dtype=str(mask.dtype),
+        crs=crs,
+        transform=transform,
+    ) as dst:
+        dst.write(mask, 1)
+
+def save_predictions(
+        prediction,
+        path,
+        class_config,
+        crs_transformer,
+        threshold=0.5
+    ):
+    
+    prediction.save(path, class_config=class_config, crs_transformer=crs_transformer, discrete_output=False)
+
+    prediction_score = prediction.get_score_arr(prediction.extent)[0]
+
+    mask = np.where(prediction_score >= threshold, 1, 0)
+
+    mask_filename = os.path.join(path, 'mask.tif')
+    save_mask_as_geotiff(mask, crs_transformer.transform, crs='EPSG:4326', filename=mask_filename)

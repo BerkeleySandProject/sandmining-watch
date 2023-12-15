@@ -15,7 +15,8 @@ class DecoderDoubleUpsampling(nn.Module):
         self.image_size = image_size
         self.conv_0 = nn.Conv2d(d_encoder, hidden_layer_size, 1, 1)
         self.conv_1 = nn.Conv2d(hidden_layer_size, num_classes, 1, 1)
-        self.norm = nn.LayerNorm((hidden_layer_size, embedding_size, embedding_size))
+        # self.norm = nn.LayerNorm((hidden_layer_size, embedding_size, embedding_size)) # does not scale with changing input size
+        self.norm = nn.BatchNorm2d(hidden_layer_size)
 
     def forward(self, x):
         x = self.conv_0(x)

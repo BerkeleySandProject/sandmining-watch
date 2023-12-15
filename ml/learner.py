@@ -36,6 +36,7 @@ from experiment_configs.schemas import SupervisedTrainingConfig, BackpropLossCho
 from ml.losses import DiceLoss
 from ml.model_stats import count_number_of_weights
 from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
+from ml.eval_utils import compute_metrics
 
 warnings.filterwarnings('ignore')
 
@@ -66,6 +67,7 @@ class BinarySegmentationLearner(ABC):
                  epoch_scheduler: Optional['_LRScheduler'] = None,
                  step_scheduler: Optional['_LRScheduler'] = None,
                  save_model_checkpoints = False,
+                 load_model_weights = False,
                  ):
         self.config = config
         self.device = torch.device('cuda'
@@ -104,7 +106,9 @@ class BinarySegmentationLearner(ABC):
 
         self.class_names = CLASS_CONFIG.names
         self.metric_names = self.build_metric_names()
-        self.load_weights_if_available()
+
+        if load_model_weights:
+            self.load_weights_if_available()
 
         self.visualizer = SemanticSegmentationVisualizer(self.class_names)
 
@@ -239,14 +243,18 @@ class BinarySegmentationLearner(ABC):
         )
         conf_mat_metrics = compute_conf_mat_metrics(conf_mat, self.class_names)
 
-        bap = BinaryAveragePrecision(thresholds=None)
-        average_precision = bap(out_probabilites, ground_truths)
+        # bap = BinaryAveragePrecision(thresholds=None)
+        # average_precision1 = bap(out_probabilites, ground_truths)
+
+        _,_,_, average_precision, best_threshold, best_f1_score = compute_metrics(ground_truths.cpu().numpy(), out_probabilites.cpu().numpy())
 
         metrics = {
             **conf_mat_metrics,
             "sandmine_average_precision": average_precision,
-            "val_bce_loss": val_bce_losses.sum() / num_samples,
-            "val_dice_loss": val_dice_losses.sum() / num_samples,
+            "sandmine_best_threshold": best_threshold,
+            "sandmine_best_f1_score": best_f1_score,
+            "val_bce_loss": val_bce_losses.cpu().numpy().sum() / num_samples,
+            "val_dice_loss": val_dice_losses.cpu().numpy().sum() / num_samples,
         }
         return metrics
 
@@ -496,12 +504,10 @@ class BinarySegmentationPredictor(ABC):
         
         self.model = model
         self.model.to(device=self.device)
+        
+        if path_to_weights: #only load decoder weightss
+            self.model.load_decoder_weights(path_to_weights)
 
-        if path_to_weights:
-            print(f"Loading weights from {path_to_weights}")
-            self.model.load_state_dict(
-                torch.load(path_to_weights, map_location=self.device)
-            )
 
         self.class_names = CLASS_CONFIG.names
         self.num_workers = 0 # 0 means no multiprocessing

@@ -32,16 +32,39 @@ class SatMaePretrained(nn.Module):
             raise ValueError(f"No checkpoint found at {path_to_weights}")
         print(f"SatMae: Loading encoder weights from {path_to_weights}")
         checkpoint = torch.load(path_to_weights, map_location='cpu')
-        checkpoint_model = checkpoint['model']
 
-        # state_dict = self.encoder.state_dict()
-        # for k in ['pos_embed', 'patch_embed.proj.weight', 'patch_embed.proj.bias', 'head.weight', 'head.bias']:
-        #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-        #         print(f"Removing key {k} from pretrained checkpoint")
-        #         del checkpoint_model[k]
-        interpolate_pos_embed(self.encoder, checkpoint_model)
-        msg = self.encoder.load_state_dict(checkpoint_model, strict=False)
-        print(msg) 
+        #check if checkpoint has a 'model' key
+        # this indicates that you're loading the original SatMAE pretrained weights
+        if 'model' in checkpoint:
+            checkpoint_model = checkpoint['model']
+            interpolate_pos_embed(self.encoder, checkpoint_model)
+            msg = self.encoder.load_state_dict(checkpoint_model, strict=False)
+
+
+        else: #you're loading your own checkpoints which have the encoder and decoder weights separately saved as keys
+            checkpoint_model = checkpoint
+            state_dict = self.encoder.state_dict()
+
+            #rename the encoder weights -> get rid of 'encoder.' prefix
+            checkpoint_encoder = {k.replace('encoder.', ''): v for k, v in checkpoint_model.items() if 'encoder' in k}
+
+            ## These are parameters that are not learnt and can be removed -> need this when loading the original SatMAE weights
+            # for k in ['pos_embed', 'patch_embed.proj.weight', 'patch_embed.proj.bias', 'head.weight', 'head.bias']:
+            #     if k in checkpoint_encoder and checkpoint_encoder[k].shape != state_dict[k].shape:
+            #         print(f"Removing key {k} from pretrained checkpoint")
+            #         del checkpoint_encoder[k]            
+ 
+            interpolate_pos_embed(self.encoder, checkpoint_encoder)
+
+            #rename the encoder weights
+            # checkpoint_encoder = {k.replace('encoder.', ''): v for k, v in checkpoint_model.items() if 'encoder' in k}
+            
+            msg = self.encoder.load_state_dict(checkpoint_encoder, strict=False)  #since the model params cons
+
+        if msg.missing_keys:
+            print("Warning! Missing keys:")
+            print(msg.missing_keys)
+        # print(msg) 
         
     def freeze_encoder_weights(self):
         print("SatMaePretrained: Freezing encoder weights")
@@ -52,3 +75,17 @@ class SatMaePretrained(nn.Module):
         print("SatMaePretrained: Freezing weights of embedding layer")
         for param in self.encoder.patch_embed.parameters():
             param.requires_grad = False
+
+    def load_decoder_weights(self, path_to_weights):
+        """
+        Loads the decoder weights from a checkpoint
+        """
+        if not os.path.isfile(path_to_weights):
+            raise ValueError(f"No checkpoint found at {path_to_weights}")
+        print(f"SatMae: Loading decoder weights from {path_to_weights}")
+        checkpoint = torch.load(path_to_weights, map_location='cpu')
+        checkpoint_decoder = {k.replace('decoder.', ''): v for k, v in checkpoint.items() if 'decoder' in k}
+        
+        state_dict = self.decoder.state_dict()
+
+        self.decoder.load_state_dict(checkpoint_decoder, strict=False)

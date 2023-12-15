@@ -190,11 +190,13 @@ def scene_to_validation_ds(config, scene: Scene):
     return ds
 
 
-def scene_to_inference_ds(config, scene: Scene, full_image: bool):
-    # In inference mode, we have a slining window configuration with overlapping windows.
+def scene_to_inference_ds(config, scene: Scene, full_image: bool, stride=None, aoi_centroids = True):
+    # In inference mode, we have a sliding window configuration with overlapping windows.
     # If full_image is True, sliding windows span the entire scene. Otherwise, sliding windows
     # are filtered by the scene's AOI (if existent)
-    stride = config.tile_size - N_EDGE_PIXELS_DISCARD * 2
+    if stride is None:
+        stride = config.tile_size - N_EDGE_PIXELS_DISCARD * 2
+        
     ds = SemanticSegmentationSlidingWindowGeoDatasetCustom(
         scene=scene,
         ignore_aoi=full_image, # If we want to run inference on the full image, we ignore the AOI.
@@ -289,6 +291,29 @@ class SemanticSegmentationSlidingWindowGeoDatasetCustom(SemanticSegmentationSlid
     def __init__(self, ignore_aoi = False, **kwargs):
         self.ignore_aoi = ignore_aoi
         super().__init__(**kwargs)
+
+    def _filter_by_aoi(self,
+                       windows: List['Box'],
+                       within: bool = True) -> List['Box']:
+        """Filters windows by a list of AOI polygons
+
+        Args:
+            within: if True, windows are only kept if their centroids lie within an
+                AOI polygon. Otherwise, windows are kept if they intersect an AOI
+                polygon.
+        """
+        result = []
+        for window in windows:
+            w = window.to_shapely()
+            for polygon in self.scene.aoi_polygons_bbox_coords:
+                if ((within and w.centroid.within(polygon))
+                        or ((not within) and w.intersects(polygon))):
+                    result.append(window)
+                    break
+
+        return result
+
+
     def init_windows(self) -> None:
         """Pre-compute windows."""
         windows = self.scene.raster_source.extent.get_windows(
@@ -300,4 +325,8 @@ class SemanticSegmentationSlidingWindowGeoDatasetCustom(SemanticSegmentationSlid
             windows = Box.filter_by_aoi(windows,
                                         self.scene.aoi_polygons_bbox_coords,
                                         within=False)
+            
+            #if you want the windows centroid to be within the aoi, then use this:
+            # windows = self._filter_by_aoi(windows,
+            #                               within=True)
         self.windows = windows

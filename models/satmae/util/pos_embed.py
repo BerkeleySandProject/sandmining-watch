@@ -89,8 +89,13 @@ def get_1d_sincos_pos_embed_from_grid_torch(embed_dim, pos):
 # DeiT: https://github.com/facebookresearch/deit
 # --------------------------------------------------------
 def interpolate_pos_embed(model, checkpoint_model):
-    if 'pos_embed' in checkpoint_model:
-        pos_embed_checkpoint = checkpoint_model['pos_embed']
+    if 'pos_embed' in checkpoint_model or 'encoder.pos_embed' in checkpoint_model:
+
+        try:
+            pos_embed_checkpoint = checkpoint_model['pos_embed']
+        except KeyError as err:
+            pos_embed_checkpoint = checkpoint_model['encoder.pos_embed']
+            
         embedding_size = pos_embed_checkpoint.shape[-1]
         try:
             num_patches = model.patch_embed.num_patches

@@ -109,3 +109,20 @@ satmae_large_config = SupervisedFinetuningCofig(
     encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
     loss_fn=BackpropLossChoice.BCE
 )
+
+## Inference
+
+satmae_large_inf_config = SupervisedFinetuningCofig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=200,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=32,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=0., #unused in inference mode
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    encoder_weights_path="/data/sand_mining/checkpoints/finetuned/SatMAE-L_b128-BatchNormDec-smoothing.pth",
+    loss_fn=BackpropLossChoice.BCE,
+)

@@ -17,23 +17,6 @@ else:
     CLASS_NAME = None #this should trigger an error wherever 3-class annotations rely on this    
 
 
-# from split import training_locations, validation_locations
-# def is_training(observation_key:str):
-#     for training_location in training_locations:
-#         if observation_key.startswith(training_location):
-#             return True
-#     return False
-
-# def is_validation(observation_key:str):
-#     for validation_location in validation_locations:
-#         if observation_key.startswith(validation_location):
-#             return True
-#     return False
-
-
-# Band order in _s1.tif ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B9', 'B11', 'B12']
-# Band order in _s2.tif ['VV', 'VH']
-
 class S2Band(Enum):
     # The value indicates the channel idx in our GCP export of Sentinel-2 L2A data
     B1 = 0
@@ -51,8 +34,6 @@ class S2Band(Enum):
     B12 = 11
 
 RGB_BANDS = [S2Band.B4, S2Band.B3, S2Band.B2]
-
-
 
 
 #Storage stuff
