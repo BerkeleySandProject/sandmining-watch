@@ -14,8 +14,8 @@ CLASS_NAME = 'other'
 #     null_class='other'
 # ) 
 CLASS_CONFIG = ClassConfig(
-    colors=["grey", "red"],
-    names=["other", "sandmine"],
+    colors=["grey", "yellow" "red"],
+    names=["other", "low-conf-sandmine" "high-conf-sandmine"],
     null_class="other"
 )
 

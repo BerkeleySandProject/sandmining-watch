@@ -37,6 +37,7 @@ class NormalizationS2Choice(Enum):
 class BackpropLossChoice(Enum):
     BCE = "BCE"
     DICE = "DICE"
+    CE = "CE"
 
 @dataclass
 class SupervisedTrainingConfig:
@@ -50,7 +51,7 @@ class SupervisedTrainingConfig:
     batch_size: int
     learning_rate: float
     datasets: DatasetChoice
-    mine_class_loss_weight: float
+    nonmine_class_weight: float
     uncertain_class_weight: float
 
 class FinetuningStratagyChoice(Enum):

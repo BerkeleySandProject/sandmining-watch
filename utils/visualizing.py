@@ -134,10 +134,10 @@ def get_cmap_from_class_colors(class_colors):
     cmap = mcolors.ListedColormap(colors)
     return cmap
 
-def get_default_cmap(cvals=[0,  1], colors=CLASS_CONFIG.colors):
+def get_default_cmap(cvals=[0,  1, 2], colors=CLASS_CONFIG.colors):
     norm=plt.Normalize(min(cvals),max(cvals))
     tuples = list(zip(map(norm,cvals), colors))
-    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", tuples)
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("plasma", tuples)
     return cmap
     
 def show_rgb_with_labels(img, label_img):
@@ -246,17 +246,19 @@ def show_windows(img, windows, title='', aoi_polygons=[]):
     plt.show()
 
 
-from .rastervision_pipeline import ThreeClassSemanticSegmentationRandomWindowGeoDataset, ThreeClassSemanticSegmentationSlidingWindowGeoDataset
+# from .rastervision_pipeline import ThreeClassSemanticSegmentationRandomWindowGeoDataset, ThreeClassSemanticSegmentationSlidingWindowGeoDataset
+from .rastervision_pipeline import SemanticSegmentationSlidingWindowGeoDatasetCustom
+from rastervision.pytorch_learner import SemanticSegmentationRandomWindowGeoDataset
 def visualize_dataset(ds_list: List[GeoDataset]):
     for ds in ds_list:
         rgb_band_idx = [e.value for e in RGB_BANDS]
         img_rgb = raster_source_to_rgb(ds.scene.raster_source)
 
-        if isinstance(ds, ThreeClassSemanticSegmentationRandomWindowGeoDataset):
+        if isinstance(ds, SemanticSegmentationRandomWindowGeoDataset):
             title = f"{ds.scene.id}, N={ds.max_windows}"
             windows = [ds.sample_window() for _ in range(ds.max_windows)]
         
-        elif isinstance(ds, ThreeClassSemanticSegmentationSlidingWindowGeoDataset):
+        elif isinstance(ds, SemanticSegmentationSlidingWindowGeoDatasetCustom):
             title = f"{ds.scene.id}, N={len(ds.windows)}"
             windows = ds.windows
         else:

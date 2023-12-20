@@ -8,7 +8,7 @@ def model_factory(
         config: Union[SupervisedTrainingConfig, SupervisedFinetuningCofig] ,
         n_channels,
     ):
-    n_classes = 1
+    n_classes = 3
     if config.model_type == ModelChoice.UnetSmall:
         from models.unet.unet_small import UNetSmall
         model = UNetSmall(n_channels, n_classes)
@@ -42,7 +42,7 @@ def model_factory(
         from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
         model = ResNetEncoderUNetDecoder("resnet50", n_channels, n_classes)
     elif config.model_type == ModelChoice.Test:
-        model = torch.nn.Conv2d(n_channels, 1, 1)
+        model = torch.nn.Conv2d(n_channels, n_classes, 1)
     else:
         raise ValueError("Error in model selection")
     

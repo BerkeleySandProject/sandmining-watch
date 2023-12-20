@@ -167,16 +167,14 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
                         )
 
         aoi_polygons = river_vector_source.get_geoms()
-        scene = TwoClassScene(id=scene_id, 
+        scene = Scene(id=scene_id, 
                                 raster_source=img_raster_source, 
                                 label_source=label_source,
-                                low_confidence_weight=low_conf_weight,
                                 aoi_polygons=aoi_polygons)    
     else:
-        scene = TwoClassScene(id=scene_id, 
+        scene = Scene(id=scene_id, 
                         raster_source=img_raster_source, 
-                        label_source=label_source,
-                        low_confidence_weight=low_conf_weight)
+                        label_source=label_source)
 
     return scene
 
@@ -203,7 +201,7 @@ def sliding_filter_by_aoi(windows: List['Box'],
 
 def scene_to_validation_ds(config, scene: Scene):
     # No augementation and windows don't overlap. Use for validation during training time.
-    ds = TwoClassSemanticSegmentationSlidingWindowGeoDataset(
+    ds = SemanticSegmentationSlidingWindowGeoDatasetCustom(
         scene=scene,
         ignore_aoi=False, # Filter windows by AOI 
         size=config.tile_size,
@@ -284,7 +282,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     # n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 2    
     # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
     n_windows = 10
-    ds = TwoClassSemanticSegmentationRandomWindowGeoDataset(
+    ds = SemanticSegmentationRandomWindowGeoDataset(
         scene,
         out_size=(config.tile_size, config.tile_size),
         # Setting size_lims=(size,size+1) seems weird, but it actually leads to all windows having the same size
@@ -300,7 +298,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     )
     #override the sample_window method and within_aoi method
     ds.aoi_centroids = aoi_centroids
-    ds.sample_window = custom_sample_window.__get__(ds, TwoClassSemanticSegmentationRandomWindowGeoDataset)
+    ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
     return ds
 
 def geoms_to_conf_labels(df: gpd.GeoDataFrame, window: 'Box',
@@ -334,12 +332,9 @@ def geoms_to_conf_labels(df: gpd.GeoDataFrame, window: 'Box',
             rasters.append(raster)  
         #Now merge the rasters such that the maximum value is taken for each pixel
         raster = np.maximum.reduce(rasters)
-        # Change values so that High is 1 and Low is 2
-        raster[raster == 1] = 3
-        raster[raster == 2] = 1
-        raster[raster == 3] = 2
+
     else:
-        raster = np.full(window.size, background_class_id, dtype=np.float32)
+        raster = np.full(window.size, background_class_id)
     return raster
 
 class ConfidenceLabelSource(RasterizedSource):
@@ -373,143 +368,6 @@ class ConfidenceLabelSource(RasterizedSource):
             extent=self.extent,
             all_touched=self.all_touched)
         return np.expand_dims(chip, 2)
-
-
-class TwoClassScene(Scene):
-    def __init__(self,
-                 id: str,
-                 raster_source: 'RasterSource',
-                 label_source: Optional['LabelSource'] = None,
-                 low_confidence_weight: float = 0.,
-                 label_store = None,
-                 aoi_polygons: Optional[List['BaseGeometry']] = None):
-        super().__init__(id, raster_source, label_source, label_store, aoi_polygons)
-        self.low_confidence_weight = low_confidence_weight
-    
-    def __getitem__(self, key: Any) -> Tuple[Any, Any]:
-        x = self.raster_source[key]
-        if self.label_source is not None:
-            w = self.label_source[key]
-            y = np.zeros_like(w)
-            y[w != 0] = 1
-            w = w.astype(float)
-            w[w == 0] = 1
-            w[w == 2] = self.low_confidence_weight
-        else:
-            y, w = None, w
-        return x, y, w
-    
-def threeClassSemanticSegmentationTransformer(
-        inp: Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]],
-        transform: Optional[A.BasicTransform]):
-    x, y, w = inp
-    x = np.array(x)
-    if transform is not None:
-        if y is None and w is None:
-            x = transform(image=x)['image']
-        elif y is not None and w is None:
-            y = np.array(y)
-            out = transform(image=x, mask=y)
-            x, y = out['image'], out['mask']
-            y = y.astype(int)
-        else:
-            y, w = np.array(y), np.array(w)
-            out = transform(image=x, mask=y, weights=w)
-            x, y, w = out["image"], out["mask"], out["weights"]
-            y = y.astype(int)
-    return x, y, w
-
-
-def getDataSetItem(dataset, key):
-    val = dataset.orig_dataset[key]
-    try:
-        x, y, w = dataset.transform(val)
-    except Exception as exc:
-        raise exc
-
-    if dataset.normalize and np.issubdtype(x.dtype, np.unsignedinteger):
-        max_val = np.iinfo(x.dtype).max
-        x = x.astype(float) / max_val
-
-    if dataset.to_pytorch:
-        x = torch.from_numpy(x).permute(2, 0, 1).float()
-        if y is not None:
-            y = torch.from_numpy(y)
-        if w is not None:
-            w = torch.from_numpy(w)
-
-    if y is None:
-        y = torch.tensor(np.nan)
-    if w is None:
-        w = torch.tensor(np.nan)
-
-    return x, y, w
-
-class TwoClassSemanticSegmentationRandomWindowGeoDataset(RandomWindowGeoDataset):
-    def __init__(self, 
-                 scene: Scene,
-                 out_size: Optional[Union[PosInt, Tuple[PosInt, PosInt]]],
-                 size_lims: Optional[Tuple[PosInt, PosInt]] = None,
-                 h_lims: Optional[Tuple[PosInt, PosInt]] = None,
-                 w_lims: Optional[Tuple[PosInt, PosInt]] = None,
-                 padding: Optional[Union[NonNegInt, Tuple[NonNegInt,
-                                                          NonNegInt]]] = None,
-                 max_windows: Optional[NonNegInt] = None,
-                 max_sample_attempts: PosInt = 100,
-                 return_window: bool = False,
-                 efficient_aoi_sampling: bool = True,
-                 transform: Optional[A.BasicTransform] = None,
-                 normalize: bool = True,
-                 to_pytorch: bool = True):
-        super().__init__(scene, out_size, size_lims, h_lims, w_lims, padding, 
-                         max_windows, max_sample_attempts, return_window, 
-                         efficient_aoi_sampling, transform, TransformType.noop, 
-                         normalize, to_pytorch)
-        self.transform = lambda inp: threeClassSemanticSegmentationTransformer(inp, transform)
-        
-    def __getitem__(self, idx: int):
-        if idx >= len(self):
-            raise StopIteration()
-        window = self.sample_window()
-        if self.return_window:
-            return (getDataSetItem(self, window), window)
-        return getDataSetItem(self, window)
-    
-class TwoClassSemanticSegmentationSlidingWindowGeoDataset(SlidingWindowGeoDataset):
-    def __init__(self, 
-                 scene: Scene,
-                 size: Union[PosInt, Tuple[PosInt, PosInt]],
-                 stride: Union[PosInt, Tuple[PosInt, PosInt]],
-                 ignore_aoi=False,
-                 padding: Optional[Union[NonNegInt, Tuple[NonNegInt,
-                                                          NonNegInt]]] = None,
-                 pad_direction: Literal['both', 'start', 'end'] = 'end',
-                 transform: Optional[A.BasicTransform] = None,
-                 normalize: bool = True,
-                 to_pytorch: bool = True):
-        self.ignore_aoi = ignore_aoi
-        super().__init__(scene, size, stride, padding, pad_direction, transform, TransformType.noop, 
-                         normalize, to_pytorch)
-        self.transform = lambda inp: threeClassSemanticSegmentationTransformer(inp, transform)
-        
-    def init_windows(self) -> None:
-        """Pre-compute windows."""
-        windows = self.scene.raster_source.extent.get_windows(
-            self.size,
-            stride=self.stride,
-            padding=self.padding,
-            pad_direction=self.pad_direction)
-        if len(self.scene.aoi_polygons_bbox_coords) > 0 and not self.ignore_aoi:
-            windows = Box.filter_by_aoi(windows,
-                                        self.scene.aoi_polygons_bbox_coords,
-                                        within=False)
-        self.windows = windows
-
-    def __getitem__(self, idx: int):
-        if idx >= len(self):
-            raise StopIteration()
-        window = self.windows[idx]
-        return getDataSetItem(self, window)
 
 
 class SemanticSegmentationSlidingWindowGeoDatasetCustom(SemanticSegmentationSlidingWindowGeoDataset):
