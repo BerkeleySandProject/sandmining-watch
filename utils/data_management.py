@@ -166,17 +166,17 @@ def observation_factory(dataset_json) -> List[ObservationPointer]:
 
     for observation in dataset_json:
         observation = ObservationPointer(
-            uri_to_s1           = observation['uri_to_s1'],
-            uri_to_s2           = observation['uri_to_s2'],
-            uri_to_s2_l1c       = observation['uri_to_s2_l1c'],
-            uri_to_rgb          = observation['uri_to_rgb'],
-            uri_to_annotations  = observation['uri_to_annotations'],
-            uri_to_rivers       = observation['uri_to_rivers'],
-            name                = observation['name'],
-            cluster_id          = observation['cluster_id'],
-            latitude            = observation['latitude'],
-            longitude           = observation['longitude'],
-            date                = observation['date']
+            uri_to_s1           = observation.get('uri_to_s1'),
+            uri_to_s2           = observation.get('uri_to_s2'),
+            uri_to_s2_l1c       = observation.get('uri_to_s2_l1c'),
+            uri_to_rgb          = observation.get('uri_to_rgb'),
+            uri_to_annotations  = observation.get('uri_to_annotations'),
+            uri_to_rivers       = observation.get('uri_to_rivers'),
+            name                = observation.get('name'),
+            cluster_id          = observation.get('cluster_id'),
+            latitude            = observation.get('latitude'),
+            longitude           = observation.get('longitude'),
+            date                = observation.get('date')
         )
         yield observation
 

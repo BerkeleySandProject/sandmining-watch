@@ -1,5 +1,8 @@
 from .schemas import *
 
+##There's no reason to set batch sizes to a powers of 2. Empirical evidence:
+# https://wandb.ai/datenzauberai/Batch-Size-Testing/reports/Do-Batch-Sizes-Actually-Need-to-be-Powers-of-2---VmlldzoyMDkwNDQx
+
 ##########################
 # Fully supervised
 
@@ -45,7 +48,7 @@ segformer_config = SupervisedTrainingConfig(
 ########################## 
 # SSL4EO
 
-ssl4eo_resnet18_config = SupervisedFinetuningCofig(
+ssl4eo_resnet18_config = SupervisedFinetuningConfig(
     model_type=ModelChoice.ResNet18UNet,
     optimizer=OptimizerChoice.AdamW,
     tile_size=160,
@@ -60,7 +63,7 @@ ssl4eo_resnet18_config = SupervisedFinetuningCofig(
     loss_fn=BackpropLossChoice.BCE
 )
 
-ssl4eo_resnet50_config = SupervisedFinetuningCofig(
+ssl4eo_resnet50_config = SupervisedFinetuningConfig(
     model_type=ModelChoice.ResNet50UNet,
     optimizer=OptimizerChoice.AdamW,
     tile_size=160,
@@ -80,7 +83,7 @@ ssl4eo_resnet50_config = SupervisedFinetuningCofig(
 
 from models.satmae.pretrained_satmae_config import satmea_pretrained_encoder_bands_idx
 
-satmae_base_config = SupervisedFinetuningCofig(
+satmae_base_config = SupervisedFinetuningConfig(
     model_type=ModelChoice.SatmaeBaseDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
     tile_size=160,
@@ -95,34 +98,69 @@ satmae_base_config = SupervisedFinetuningCofig(
     loss_fn=BackpropLossChoice.BCE
 )
 
-satmae_large_config = SupervisedFinetuningCofig(
-    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=160,
-    s2_channels=satmea_pretrained_encoder_bands_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=128,
-    learning_rate=1e-3,
-    datasets=DatasetChoice.S2,
-    mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
-    loss_fn=BackpropLossChoice.BCE
-)
-
-## Inference
-
-satmae_large_inf_config = SupervisedFinetuningCofig(
+satmae_large_config = SupervisedFinetuningConfig(
     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
     tile_size=200,
     s2_channels=satmea_pretrained_encoder_bands_idx,
     s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=32,
+    batch_size=50,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=6.,
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
+    loss_fn=BackpropLossChoice.BCE,
+    num_upsampling_layers=3
+)
+
+satmae_large_config_lora = SupervisedFinetuningConfig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=200,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=4,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=6.,
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
+    loss_fn=BackpropLossChoice.BCE,
+    num_upsampling_layers=2
+)
+
+
+## Inference
+
+satmae_large_inf_config = InferenceConfig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=200,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=16,
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=0., #unused in inference mode
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/finetuned/SatMAE-L_b128-BatchNormDec-smoothing.pth",
+    # finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    # encoder_weights_path="/data/sand_mining/checkpoints/finetuned/SatMAE-L_b128-BatchNormDec-smoothing.pth",
+    # encoder_weights_path="/home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L-LNDec-224-mclw=13-B32.pth",
+    encoder_weights_path='/home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L_LoRA_LN_200_mclw=6_B4.pth',
     loss_fn=BackpropLossChoice.BCE,
+    crop_sz=0
+)
+
+
+
+###########LoRA Configs
+# Refer to https://huggingface.co/docs/peft/conceptual_guides/lora
+from peft import LoraConfig
+lora_config = LoraConfig(
+    r=16,
+    lora_alpha=16,
+    target_modules=["qkv"],
+    lora_dropout=0.1,
+    bias="none",
+    modules_to_save=["decoder"], #modules_to_save: List of modules apart from LoRA layers to be set as trainable and saved in the final checkpoint. These typically include model’s custom head that is randomly initialized for the fine-tuning task.
 )

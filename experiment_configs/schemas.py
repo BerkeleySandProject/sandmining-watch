@@ -14,6 +14,7 @@ class ModelChoice(Enum):
     ResNet18UNet = "resnet18-unet"
     ResNet34UNet = "resnet34-unet"
     ResNet50UNet = "resnet50-unet"
+    SatmaeLargeVITDecoder = "satmae-large-vit-decoder"
 
 class OptimizerChoice(Enum):
     AdamW = "adamw"
@@ -56,11 +57,19 @@ class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
     LinearProbing = "linear-probing" # Encoder weights are frozen
     FreezeEmbed = "freeze-embed" # Only applicable for ViT! Patch embed layer is frozen.
+    LoRA = "lora" # Low Rank Adaptation
 
 @dataclass
-class SupervisedFinetuningCofig(SupervisedTrainingConfig):
+class SupervisedFinetuningConfig(SupervisedTrainingConfig):
     finetuning_strategy: FinetuningStratagyChoice
     encoder_weights_path: Optional[bool]
+    num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
+
+@dataclass
+class InferenceConfig(SupervisedTrainingConfig):
+    crop_sz: Optional[int]
+    encoder_weights_path: Optional[bool]
+    num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
 
 
 ## Annotation stuff

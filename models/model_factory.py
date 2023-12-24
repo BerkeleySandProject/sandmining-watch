@@ -1,14 +1,28 @@
 from enum import Enum
 
-from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningCofig, ModelChoice, FinetuningStratagyChoice
+from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig
 from typing import Union
 
 
+def print_trainable_parameters(model):
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    print(f"trainable params: {trainable_params/1e6}M || all params: {all_param/1e6}M || trainable%: {100 * trainable_params / all_param:.2f}")
+
+
+
 def model_factory(
-        config: Union[SupervisedTrainingConfig, SupervisedFinetuningCofig] ,
+        config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig] ,
         n_channels,
     ):
     n_classes = 1
+    if config.num_upsampling_layers is None:
+        config.num_upsampling_layers = 2
+
     if config.model_type == ModelChoice.UnetSmall:
         from models.unet.unet_small import UNetSmall
         model = UNetSmall(n_channels, n_classes)
@@ -28,7 +42,7 @@ def model_factory(
         model = SatMaeSegmenterWithDoubleUpsampling("base", image_size=config.tile_size, num_classes=n_classes)
     elif config.model_type == ModelChoice.SatmaeLargeDoubleUpsampling:
         from models.satmae.satmae_encoder_custom_decoder.satmae_encoder_double_upsampling import SatMaeSegmenterWithDoubleUpsampling
-        model = SatMaeSegmenterWithDoubleUpsampling("large", image_size=config.tile_size, num_classes=n_classes)
+        model = SatMaeSegmenterWithDoubleUpsampling("large", image_size=config.tile_size, num_classes=n_classes, num_levels=config.num_upsampling_layers)
     elif config.model_type == ModelChoice.UnetResBlocks:
         from models.unet.unet_resblocks import UNetResBlocks
         model = UNetResBlocks(n_channels, n_classes)
@@ -46,11 +60,11 @@ def model_factory(
     
     initial_state = {name: param.clone() for name, param in model.state_dict().items()}
     
-    if isinstance(config, SupervisedFinetuningCofig):
+    if isinstance(config, SupervisedFinetuningConfig):
         if config.encoder_weights_path:
             model.load_encoder_weights(config.encoder_weights_path)
 
-        if config.finetuning_strategy == FinetuningStratagyChoice.End2EndFinetuning:
+        if config.finetuning_strategy == FinetuningStratagyChoice.End2EndFinetuning or config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
             pass
         elif config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing:
             model.freeze_encoder_weights()
@@ -60,6 +74,13 @@ def model_factory(
             raise NotImplementedError("LayerwiseLrDecay is not yet implemented")
         else:
             raise ValueError("Unknown choice for finetuning strategy")
+        
+    if isinstance(config, InferenceConfig):
+        if config.encoder_weights_path:
+            model.load_encoder_weights(config.encoder_weights_path)
+        else:
+            raise ValueError("No encoder weights path provided for inference")
+
     import torch
     # Compare the initial and final state of the model
     count = 0

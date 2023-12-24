@@ -21,6 +21,7 @@ def evaluate_predictions(prediction_results):
         # We discard the edge pixels in each observation. This ensures that 
         # results are comparable, even if the window size is different.
         # (But N_EDGE_PIXELS_DISCARD needs to remain consistent)
+        
         prediction = center_crop(prediction_result_dict['predictions'], prediction_result_dict['crop_sz']).ravel()
         gt = center_crop(prediction_result_dict['ground_truth'], prediction_result_dict['crop_sz']).ravel()
         observation_name = prediction_result_dict['name']
@@ -58,6 +59,12 @@ def evaluate_predictions(prediction_results):
         f"eval/total/best_threshold": best_threshold,
         f"eval/total/best_f1_score": best_f1_score,
     })
+
+    #replace nans in all_gt and all_predictions with 0
+    all_gt = np.nan_to_num(all_gt)
+    all_predictions = np.nan_to_num(all_predictions)
+
+
     if wandb.run is not None:
         pr_curve = make_precision_recall_curve_plot(all_gt, all_predictions)
         eval_dict.update({
@@ -104,11 +111,12 @@ def make_wandb_predicted_probs_images(prediction_results):
         )
     return list(map(create_predicted_probabilities_image, prediction_results))
 
-def center_crop(array, n_crop_pixels=N_EDGE_PIXELS_DISCARD):
+def center_crop(array, n_crop_pixels=0):
+# def center_crop(array, n_crop_pixels=N_EDGE_PIXELS_DISCARD):
     """
     Given a 2-dimensional array, crops this array by n_crop_pixels at each edge
     """
-    return array[n_crop_pixels:-n_crop_pixels, n_crop_pixels:-n_crop_pixels]
+    return array[n_crop_pixels:-n_crop_pixels, n_crop_pixels:-n_crop_pixels] if n_crop_pixels > 0 else array
 
 def compute_metrics(ground_truth, predicted_prob):
 

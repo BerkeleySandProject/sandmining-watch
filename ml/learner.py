@@ -18,7 +18,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torchmetrics.classification import BinaryAveragePrecision
+# from torchmetrics.classification import BinaryAveragePrecision
 
 from rastervision.core.data import SemanticSegmentationLabels, SemanticSegmentationSmoothLabels
 from rastervision.pipeline.file_system import make_dir
@@ -32,11 +32,15 @@ if TYPE_CHECKING:
     from torch.utils.data import Dataset, Sampler
 
 from project_config import CLASS_CONFIG, WANDB_PROJECT_NAME, N_EDGE_PIXELS_DISCARD
-from experiment_configs.schemas import SupervisedTrainingConfig, BackpropLossChoice
+from experiment_configs.schemas import SupervisedTrainingConfig, BackpropLossChoice, FinetuningStratagyChoice
 from ml.losses import DiceLoss
 from ml.model_stats import count_number_of_weights
 from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
 from ml.eval_utils import compute_metrics
+
+from peft import LoraConfig, get_peft_model
+from experiment_configs.configs import lora_config
+
 
 warnings.filterwarnings('ignore')
 
@@ -68,6 +72,7 @@ class BinarySegmentationLearner(ABC):
                  step_scheduler: Optional['_LRScheduler'] = None,
                  save_model_checkpoints = False,
                  load_model_weights = False,
+                 config_lora:LoraConfig = lora_config
                  ):
         self.config = config
         self.device = torch.device('cuda'
@@ -104,6 +109,12 @@ class BinarySegmentationLearner(ABC):
         else:
             self.model_checkpoints_dir = None
 
+
+        if config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
+            print ("Applying LoRA ...")
+            self.model = get_peft_model(model, config_lora)
+
+
         self.class_names = CLASS_CONFIG.names
         self.metric_names = self.build_metric_names()
 
@@ -111,6 +122,23 @@ class BinarySegmentationLearner(ABC):
             self.load_weights_if_available()
 
         self.visualizer = SemanticSegmentationVisualizer(self.class_names)
+        self.log_data_stats()
+
+    def wrapup(self):
+        """ Called after all epochs are completed
+        """
+        if self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
+            self.merge_lora_weights()
+
+        if self.last_model_weights_path:
+            self.save_model_weights(self.last_model_weights_path)
+
+
+    def merge_lora_weights(self):
+        print("Merging LoRa weights ...")   
+        # print_trainable_parameters(learner.model)
+
+        self.model = self.model.merge_and_unload(safe_merge=True)
 
 
     def get_collate_fn(self) -> Optional[callable]:
@@ -413,14 +441,22 @@ class BinarySegmentationLearner(ABC):
 
             self.on_epoch_end(epoch, metrics)
 
+        self.wrapup()
+
     def on_train_start(self):
         """Hook that is called at start of train routine."""
         pass
 
+    def save_model_weights(self, path: str):
+        """Save model weights to path."""
+        print("Saving model weights to {}".format(path))
+        torch.save(self.model.state_dict(), path)
+
     def on_epoch_end(self, curr_epoch, metrics):
         """Hook that is called at end of epoch."""
-        if self.last_model_weights_path:
-            torch.save(self.model.state_dict(), self.last_model_weights_path)
+        
+        # if self.last_model_weights_path:
+        #     self.save_model_weights(self.last_model_weights_path)
 
         if self.model_checkpoints_dir:
             torch.save(self.model.state_dict(), f"{self.model_checkpoints_dir}/after_epoch_{curr_epoch}.pth")
@@ -497,6 +533,7 @@ class BinarySegmentationPredictor(ABC):
                  config: SupervisedTrainingConfig,
                  model: nn.Module,
                  path_to_weights: Optional[str] = None,
+                 temperature: [float] = None
                  ):
         self.config = config
         self.device = torch.device('cuda'
@@ -511,6 +548,17 @@ class BinarySegmentationPredictor(ABC):
 
         self.class_names = CLASS_CONFIG.names
         self.num_workers = 0 # 0 means no multiprocessing
+
+        self._set_temperature(temperature)
+
+    def _set_temperature(self, 
+                         temperature: float = None):
+        
+        self.temperature = temperature
+        if self.temperature is None:
+            print("Temperature scaling set to None")
+        else:
+            print("Predictor has a calibration temperature of {}".format(self.temperature))
 
     def predict_dataset(self,
                         dataset: 'Dataset',
@@ -755,7 +803,11 @@ class BinarySegmentationPredictor(ABC):
         # Squeeze to remove the n_classes dimension (since it is size 1)
         # From batch_size x n_classes x width x height
         # To batch_size x width x height
-        return x.squeeze(1)
+        x =  x.squeeze(1)
+        if self.temperature is not None:
+            x /= self.temperature
+
+        return x
 
 
     def predict_site(
@@ -776,9 +828,9 @@ class BinarySegmentationPredictor(ABC):
             num_classes=1,
             crop_sz=crop_sz,
         )
-        if np.max(predictions_site.pixel_hits) > 1:
-            print("NOTE: You are averaging predictions from overlapping windows. \
-                  \nAre you sure you want to do this?")
+        # if np.max(predictions_site.pixel_hits) > 1:
+        #     print("NOTE: You are averaging predictions from overlapping windows. \
+        #           \nAre you sure you want to do this?")
         return predictions_site
 
     def predict_mine_probability_for_site(
