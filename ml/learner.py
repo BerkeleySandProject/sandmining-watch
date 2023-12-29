@@ -21,6 +21,7 @@ from torch.utils.data import DataLoader
 # from torchmetrics.classification import BinaryAveragePrecision
 
 from rastervision.core.data import SemanticSegmentationLabels, SemanticSegmentationSmoothLabels
+from ml.semantic_segmentation_labels import SemanticSegmentationSmoothLabelsCustom, SemanticSegmentationLabelsCustom 
 from rastervision.pipeline.file_system import make_dir
 from rastervision.pytorch_learner.utils import compute_conf_mat, compute_conf_mat_metrics
 from rastervision.pytorch_learner.dataset.visualizer import SemanticSegmentationVisualizer
@@ -815,22 +816,25 @@ class BinarySegmentationPredictor(ABC):
         ds: SemanticSegmentationSlidingWindowGeoDataset,
         crop_sz: int,
     ) -> SemanticSegmentationSmoothLabels:
-        predictions_on_dl = self.predict_dataset(
+        
+        predictions_on_dl = self.predict_dataset( #Each 160x160 (or other sized) images are predicted
             ds,
             numpy_out=True,
             progress_bar=False,
         )
-        predictions_site =  SemanticSegmentationLabels.from_predictions(
+
+        predictions_site =  SemanticSegmentationLabelsCustom.from_predictions(  #this is where different predicition outputs in a scene are merged
             ds.windows,
             predictions_on_dl,
-            smooth=True,
+            # smooth=True,
             extent=ds.scene.extent,
             num_classes=1,
             crop_sz=crop_sz,
+            apply_kernel=self.config.apply_smoothing,
+            tile_size = self.config.tile_size,
+            sigma = self.config.smoothing_sigma,
         )
-        # if np.max(predictions_site.pixel_hits) > 1:
-        #     print("NOTE: You are averaging predictions from overlapping windows. \
-        #           \nAre you sure you want to do this?")
+
         return predictions_site
 
     def predict_mine_probability_for_site(

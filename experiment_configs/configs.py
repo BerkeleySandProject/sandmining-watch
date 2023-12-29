@@ -101,10 +101,46 @@ satmae_base_config = SupervisedFinetuningConfig(
 satmae_large_config = SupervisedFinetuningConfig(
     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=100,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=6.,
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    encoder_weights_path="/home/ando/sandmining-watch/out/weights/pretrain-vit-large-e199.pth",
+    loss_fn=BackpropLossChoice.BCE,
+    num_upsampling_layers=2,
+    apply_smoothing=True,
+    smoothing_sigma=5.,
+)
+
+satmae_large_config_lora = SupervisedFinetuningConfig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=8,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=6.,
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    encoder_weights_path="/home/ando/sandmining-watch/out/weights/pretrain-vit-large-e199.pth",
+    loss_fn=BackpropLossChoice.BCE,
+    num_upsampling_layers=2,
+    apply_smoothing=True,
+    smoothing_sigma=5.
+)
+
+satmae_large_config_lora_3x = SupervisedFinetuningConfig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
     tile_size=200,
     s2_channels=satmea_pretrained_encoder_bands_idx,
     s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=50,
+    batch_size=3,
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=6.,
@@ -114,26 +150,7 @@ satmae_large_config = SupervisedFinetuningConfig(
     num_upsampling_layers=3
 )
 
-satmae_large_config_lora = SupervisedFinetuningConfig(
-    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=200,
-    s2_channels=satmea_pretrained_encoder_bands_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=4,
-    learning_rate=1e-3,
-    datasets=DatasetChoice.S2,
-    mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
-    loss_fn=BackpropLossChoice.BCE,
-    num_upsampling_layers=2
-)
-
-
-## Inference
-
-satmae_large_inf_config = InferenceConfig(
+satmae_large_inf_config_lora_3x = InferenceConfig(
     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
     tile_size=200,
@@ -148,8 +165,33 @@ satmae_large_inf_config = InferenceConfig(
     # encoder_weights_path="/home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L-LNDec-224-mclw=13-B32.pth",
     encoder_weights_path='/home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L_LoRA_LN_200_mclw=6_B4.pth',
     loss_fn=BackpropLossChoice.BCE,
-    crop_sz=0
+    crop_sz=0,
+    num_upsampling_layers=3
 )
+
+
+
+## Inference
+
+satmae_large_inf_config = InferenceConfig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=16,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=0., #unused in inference mode
+    encoder_weights_path='/data/sand_mining/checkpoints/finetuned/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_SmoothVal_E20.pth',
+    loss_fn=BackpropLossChoice.BCE,
+    crop_sz=0,
+    apply_smoothing=True,
+    smoothing_sigma=10.,
+)
+
+
+
 
 
 
@@ -161,6 +203,7 @@ lora_config = LoraConfig(
     lora_alpha=16,
     target_modules=["qkv"],
     lora_dropout=0.1,
-    bias="none",
+    # bias="none",
+    bias="lora_only",
     modules_to_save=["decoder"], #modules_to_save: List of modules apart from LoRA layers to be set as trainable and saved in the final checkpoint. These typically include model’s custom head that is randomly initialized for the fine-tuning task.
 )

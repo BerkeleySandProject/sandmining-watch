@@ -52,7 +52,6 @@ class SupervisedTrainingConfig:
     datasets: DatasetChoice
     mine_class_loss_weight: float
 
-
 class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
     LinearProbing = "linear-probing" # Encoder weights are frozen
@@ -64,12 +63,16 @@ class SupervisedFinetuningConfig(SupervisedTrainingConfig):
     finetuning_strategy: FinetuningStratagyChoice
     encoder_weights_path: Optional[bool]
     num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
+    apply_smoothing: Optional[bool] = True
+    smoothing_sigma: Optional[float] = 10.
 
 @dataclass
 class InferenceConfig(SupervisedTrainingConfig):
     crop_sz: Optional[int]
     encoder_weights_path: Optional[bool]
     num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
+    apply_smoothing: Optional[bool] = True
+    smoothing_sigma: Optional[float] = 10.
 
 
 ## Annotation stuff

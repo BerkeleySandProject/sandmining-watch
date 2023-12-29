@@ -49,7 +49,7 @@ class DecoderTripleUpsampling3x3(nn.Module):
 
     def forward(self, x):
         x = self.conv_0(x)
-        x = self.norm(x)
+        x = self.norm_0(x)
         x = F.relu(x, inplace=True)
         x = F.interpolate(
             x, size=x.shape[-1]*2, mode='bilinear', align_corners=False)
