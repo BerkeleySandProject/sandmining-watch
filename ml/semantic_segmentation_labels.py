@@ -162,7 +162,7 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
         self.apply_kernel = apply_kernel
 
         if self.apply_kernel:
-            print("Learner: Applying Kernel Smoothing with sigma: ", sigma)
+            # print("Learner: Applying Kernel Smoothing with sigma: ", sigma)
             self.kernel = self.create_gaussian_distribution(tile_size, sigma)
 
 
@@ -266,7 +266,7 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
         image_max = image.max()
         return (image - image_min) / (image_max - image_min)
     
-    def apply_edge_based_gaussian2D(self, size_x, size_y):
+    def apply_edge_based_gaussian2D(self, size_y, size_x):
         """
         Applies an edge-based Gaussian effect to an image.
 
@@ -292,14 +292,14 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
                 image[i, j] = self.kernel[int(distance_from_edge)]
 
         return self.normalize(image) # This is needed because of the way the kernel is generated for non-square images when sigma is high 
-                                     # in those cases, the maximum value is < 1
+                                    #  in those cases, the maximum value is < 1
         # return image
 
     
     def generate_smoothed_scores(self,
-                                num_classes,
-                                pixel_class_scores
-                                ):
+                                 num_classes,
+                                 pixel_class_scores
+                                 ):
         """
         Generate kernel weights based on the pixel class scores.
 
@@ -308,7 +308,7 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
         """
 
         smoothed = np.zeros((num_classes, pixel_class_scores.shape[0], pixel_class_scores.shape[1]))
-        applied_kernel = self.apply_edge_based_gaussian2D(pixel_class_scores.shape[1], pixel_class_scores.shape[0])
+        applied_kernel = self.apply_edge_based_gaussian2D(pixel_class_scores.shape[0], pixel_class_scores.shape[1])
 
        
         for i in range(num_classes):
@@ -346,10 +346,10 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
         # print (dst_yslice, dst_xslice ," +=", src_yslice, src_xslice)
         # print (self.pixel_scores.shape, pixel_class_scores.shape, kernel_weights.shape)
         if display:
-            _, axs = plt.subplots(1, 4, figsize=(15, 5))
+            fig, axs = plt.subplots(1, 4, figsize=(15, 5))
             axs[0].imshow(pixel_class_scores, vmax=1, vmin=0)
             axs[0].set_title('Predictions')
-            axs[1].imshow(self.kernel_weights[0, dst_yslice, dst_xslice], vmax=4, vmin=0)
+            p=axs[1].imshow(self.kernel_weights[0, dst_yslice, dst_xslice], vmin=0)
             axs[1].set_title('Kernel Weights')
             axs[2].imshow(smoothed_scores[0], vmax=1, vmin=0)
             axs[2].set_title('Smoothed')
@@ -357,6 +357,7 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
             #move title to under the plots
 
             axs[3].set_title('Added')
+            fig.colorbar(p, ax=axs[1], shrink=0.5)
             plt.text(0.5, -0.4,f'{window}', ha='center', va='center', transform=axs[1].transAxes)
             # plt.colorbar(shrink=0.5)
             plt.show()

@@ -152,38 +152,6 @@ satmae_large_config_lora_lp = SupervisedFinetuningConfig(
     smoothing_sigma=10.
 )
 
-satmae_large_config_lora_3x = SupervisedFinetuningConfig(
-    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=200,
-    s2_channels=satmea_pretrained_encoder_bands_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=3,
-    learning_rate=1e-3,
-    datasets=DatasetChoice.S2,
-    mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
-    loss_fn=BackpropLossChoice.BCE,
-    num_upsampling_layers=3
-)
-
-satmae_large_inf_config_lora_3x = InferenceConfig(
-    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=200,
-    s2_channels=satmea_pretrained_encoder_bands_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=16,
-    learning_rate=1e-3,
-    datasets=DatasetChoice.S2,
-    mine_class_loss_weight=0., #unused in inference mode
-    encoder_weights_path='/home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L_LoRA_LN_200_mclw=6_B4.pth',
-    loss_fn=BackpropLossChoice.BCE,
-    crop_sz=0,
-    num_upsampling_layers=3
-)
-
 
 
 ## Inference
@@ -198,11 +166,11 @@ satmae_large_inf_config = InferenceConfig(
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=0., #unused in inference mode
-    encoder_weights_path='/data/sand_mining/checkpoints/finetuned/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_SmoothVal_E20.pth',
+    encoder_weights_path='/data/sand_mining/checkpoints/finetuned/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_E9_SmoothVal-S5-DecOnly-E20.pth',
     loss_fn=BackpropLossChoice.BCE,
     crop_sz=0,
     apply_smoothing=True,
-    smoothing_sigma=10.,
+    smoothing_sigma=5.,
 )
 
 
