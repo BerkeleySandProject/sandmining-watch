@@ -1,8 +1,8 @@
 [
     {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/ganga/2022-10-01/S1/ganga_0_s1_2022-10-01.tif",
+        "uri_to_s1": "",
         "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/ganga/2022-10-01/S2/ganga_s2_2022-10-01.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/ganga/2022-10-01/S2_L1C/ganga_0_s2l1c_2022-10-01.tif",
+        "uri_to_s2_l1c": "",
         "date": "2022-10-01",
         "river": "ganga",
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/ganga/ganga.geojson"
@@ -24,10 +24,18 @@
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/mayurakshi/mayurakshi.geojson"
     },
     {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-10-01/S1/chambal_0_s1_2022-10-01.tif",
+        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-10-01/S1/chambal_s1_2022-10-01.tif",
         "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-10-01/S2/chambal_s2_2022-10-01.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-10-01/S2_L1C/chambal_0_s2l1c_2022-10-01.tif",
+        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-10-01/S2_L1C/chambal_s2l1c_2022-10-01.tif",
         "date": "2022-10-01",
+        "river": "chambal",
+        "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/chambal/chambal.geojson"
+    },
+    {
+        "uri_to_s1": "",
+        "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/chambal/2023-03-01/S2/chambal_s2_2023-03-01.tif",
+        "uri_to_s2_l1c": "",
+        "date": "2023-03-01",
         "river": "chambal",
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/chambal/chambal.geojson"
     },
@@ -64,7 +72,7 @@
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/parbati/parbati.geojson"
     },
     {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/yamuna/2022-10-01/S1/yamuna_0_s1_2022-10-01.tif",
+        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/yamuna/2022-10-01/S1/yamuna_s1_2022-10-01.tif",
         "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/yamuna/2022-10-01/S2/yamuna_s2_2022-10-01.tif",
         "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/yamuna/2022-10-01/S2_L1C/yamuna_0_s2l1c_2022-10-01.tif",
         "date": "2022-10-01",
@@ -72,9 +80,9 @@
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/yamuna/yamuna.geojson"
     },
     {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/betwa/2022-10-01/S1/betwa_0_s1_2022-10-01.tif",
+        "uri_to_s1": "",
         "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/betwa/2022-10-01/S2/betwa_s2_2022-10-01.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/betwa/2022-10-01/S2_L1C/betwa_0_s2l1c_2022-10-01.tif",
+        "uri_to_s2_l1c": "",
         "date": "2022-10-01",
         "river": "betwa",
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/betwa/betwa.geojson"
@@ -88,9 +96,9 @@
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/ken/ken.geojson"
     },
     {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/narmada/2022-10-01/S1/narmada_0_s1_2022-10-01.tif",
-        "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/narmada/2022-10-01/S2/narmada_0_s2_2022-10-01.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/narmada/2022-10-01/S2_L1C/narmada_0_s2l1c_2022-10-01.tif",
+        "uri_to_s1": "",
+        "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/narmada/2022-10-01/S2/narmada_s2_2022-10-01.tif",
+        "uri_to_s2_l1c": "",
         "date": "2022-10-01",
         "river": "narmada",
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/narmada/narmada.geojson"
@@ -144,9 +152,9 @@
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/sutlej/sutlej.geojson"
     },
     {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/mahanadi/2022-10-01/S1/mahanadi_0_s1_2022-10-01.tif",
-        "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/mahanadi/2022-10-01/S2/mahanadi_0_s2_2022-10-01.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/mahanadi/2022-10-01/S2_L1C/mahanadi_0_s2l1c_2022-10-01.tif",
+        "uri_to_s1": "",
+        "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/mahanadi/2022-10-01/S2/mahanadi_s2_2022-10-01.tif",
+        "uri_to_s2_l1c": "",
         "date": "2022-10-01",
         "river": "mahanadi",
         "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/mahanadi/mahanadi.geojson"
