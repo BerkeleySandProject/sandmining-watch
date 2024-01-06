@@ -171,6 +171,7 @@ satmae_large_inf_config = InferenceConfig(
     crop_sz=0,
     apply_smoothing=True,
     smoothing_sigma=5.,
+    wandb_id='sandmining-watch/sandmine_detector/6r8ypwmb'
 )
 
 

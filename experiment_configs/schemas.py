@@ -73,6 +73,7 @@ class InferenceConfig(SupervisedTrainingConfig):
     num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
     apply_smoothing: Optional[bool] = True
     smoothing_sigma: Optional[float] = 10.
+    wandb_id: Optional[str] = None
 
 
 ## Annotation stuff

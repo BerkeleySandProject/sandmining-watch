@@ -500,6 +500,7 @@ class BinarySegmentationLearner(ABC):
         wandb.define_metric("sandmine_f1", summary="max")
         wandb.define_metric("sandmine_average_precision", summary="max")
         wandb.watch(self.model, log_freq=100, log_graph=True)
+        print("W&B ID: ", wandb.run.id)
 
     def metrics_to_log_wand(self, metrics):
         metrics_to_log = {}
