@@ -15,6 +15,7 @@ def evaluate_predictions(prediction_results):
     """
     all_predictions_list = []
     all_gt_list = []
+    best_thresholds = []
 
     eval_dict = {}
     for prediction_result_dict in prediction_results:
@@ -38,6 +39,8 @@ def evaluate_predictions(prediction_results):
             continue
 
         precision, recall, f1_score, average_precision, best_threshold, best_f1_score = compute_metrics(gt, prediction)
+        best_thresholds.append(best_threshold)
+
         eval_dict.update({
             f"eval/{observation_name}/precision": precision,
             f"eval/{observation_name}/recall": recall,
@@ -50,14 +53,19 @@ def evaluate_predictions(prediction_results):
     all_predictions = np.concatenate(all_predictions_list)
     all_gt = np.concatenate(all_gt_list)
 
-    precision, recall, f1_score, average_precision, best_threshold, best_f1_score = compute_metrics(all_gt, all_predictions)
+    mean_threshold = np.mean(best_thresholds)
+    median_threshold = np.median(best_thresholds)
+    sd_threshold = np.std(best_thresholds)
+
+    precision, recall, f1_score, average_precision, _, _,  = compute_metrics(all_gt, all_predictions)
     eval_dict.update({
         f"eval/total/precision": precision,
         f"eval/total/recall": recall,
         f"eval/total/f1_score": f1_score,
         f"eval/total/average_precision": average_precision,
-        f"eval/total/best_threshold": best_threshold,
-        f"eval/total/best_f1_score": best_f1_score,
+        f"eval/total/mean_threshold": mean_threshold,
+        f"eval/total/median_threshold": median_threshold,
+        f"eval/total/sd_threshold": sd_threshold,
     })
 
     #replace nans in all_gt and all_predictions with 0
@@ -144,10 +152,8 @@ def compute_metrics(ground_truth, predicted_prob):
 
     average_precision = average_precision_score(valid_ground_truth, valid_predicted_prob)
 
-    # locate the index of the largest f score
+    #get best threshold
     ix = np.argmax(f1_scores_t)
-    print('Best Threshold=%f, Best F1 Score=%.3f' % (thresholds[ix], f1_scores_t[ix]))
-
     return precision, recall, f1_score, average_precision, thresholds[ix], f1_scores_t[ix]
 
 

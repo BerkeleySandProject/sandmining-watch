@@ -171,7 +171,27 @@ satmae_large_inf_config = InferenceConfig(
     crop_sz=0,
     apply_smoothing=True,
     smoothing_sigma=5.,
-    wandb_id='sandmining-watch/sandmine_detector/6r8ypwmb'
+    wandb_id='sandmining-watch/sandmine_detector/6r8ypwmb',
+    mean_threshold=0.51,
+)
+
+satmae_large_inf_config1 = InferenceConfig(
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=128,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=0., #unused in inference mode
+    encoder_weights_path='/data/sand_mining/checkpoints/finetuned/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_SmoothVal_E-20.pth',  
+    loss_fn=BackpropLossChoice.BCE,
+    crop_sz=0,
+    apply_smoothing=True,
+    smoothing_sigma=5.,
+    wandb_id='sandmining-watch/sandmine_detector/mvuyz9n4',
+    mean_threshold=0.4336,
 )
 
 

@@ -74,6 +74,7 @@ class InferenceConfig(SupervisedTrainingConfig):
     apply_smoothing: Optional[bool] = True
     smoothing_sigma: Optional[float] = 10.
     wandb_id: Optional[str] = None
+    mean_threshold: Optional[float] = None
 
 
 ## Annotation stuff
