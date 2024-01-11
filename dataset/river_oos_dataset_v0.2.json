@@ -1,0 +1,23 @@
+[
+    {
+        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-02-01/S1/chambal_s1_2022-02-01.tif",
+        "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-02-01/S2/chambal_s2_2022-02-01.tif",
+        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-02-01/S2_L1C/chambal_s2l1c_2022-02-01.tif",
+        "uri_to_prediction": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-02-01/chambal_prediction_2022-02-01_6r8ypwmb.tif",
+        "date": "2022-02-01",
+        "river": "chambal",
+        "uid": "6r8ypwmb",
+        "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/chambal/chambal.geojson"
+    },
+    {
+        "uri_to_s1": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-05-01/S1/chambal_s1_2022-05-01.tif",
+        "uri_to_s2": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-05-01/S2/chambal_s2_2022-05-01.tif",
+        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-05-01/S2_L1C/chambal_s2l1c_2022-05-01.tif",
+        "uri_to_prediction": "https://storage.googleapis.com/sand_mining_inference/chambal/2022-05-01/chambal_prediction_2022-05-01_6r8ypwmb.tif",
+        "date": "2022-05-01",
+        "river": "chambal",
+        "uid": "6r8ypwmb",
+        "uri_to_river": "https://storage.googleapis.com/sand_mining_inference/chambal/chambal.geojson"
+    }
+    
+]
