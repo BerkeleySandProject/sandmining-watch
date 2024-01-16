@@ -477,7 +477,6 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
 
         label_store = SemanticSegmentationLabelStore(
             uri=uri,
-            extent=self.extent,
             crs_transformer=crs_transformer,
             class_config=class_config,
             tmp_dir=tmp_dir,
