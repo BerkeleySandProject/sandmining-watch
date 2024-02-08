@@ -19,6 +19,62 @@ fully_supervised_band_selection_idx: list[int] = [
     e.value for e in fully_supervised_band_selection
 ]
 
+# Used for Testing Only
+testing_config = SupervisedTrainingConfig(
+    model_type=ModelChoice.Test,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=fully_supervised_band_selection_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=128,
+    learning_rate=5e-4,
+    datasets=DatasetChoice.S1S2,
+    mine_class_loss_weight=6.,
+    loss_fn=BackpropLossChoice.BCE
+)
+
+testing_configA = ThreeClassSupervisedTrainingConfig(
+    model_type=ModelChoice.Test,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=fully_supervised_band_selection_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=128,
+    learning_rate=5e-4,
+    datasets=DatasetChoice.S1S2,
+    mine_class_loss_weight=6.,
+    three_class_method=ThreeClassVariants.A,
+    low_confidence_weight=0.
+)
+
+testing_configB = ThreeClassSupervisedTrainingConfig(
+    model_type=ModelChoice.Test,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=fully_supervised_band_selection_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=128,
+    learning_rate=5e-4,
+    datasets=DatasetChoice.S1S2,
+    mine_class_loss_weight=6.,
+    three_class_method=ThreeClassVariants.B,
+    low_confidence_weight=0.
+)
+
+testing_configC = ThreeClassSupervisedTrainingConfig(
+    model_type=ModelChoice.Test,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=fully_supervised_band_selection_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=128,
+    learning_rate=5e-4,
+    datasets=DatasetChoice.S1S2,
+    mine_class_loss_weight=6.,
+    three_class_method=ThreeClassVariants.C,
+    low_confidence_weight=0.
+)
+
 unet_config = SupervisedTrainingConfig(
     model_type=ModelChoice.UnetOrig,
     optimizer=OptimizerChoice.AdamW,

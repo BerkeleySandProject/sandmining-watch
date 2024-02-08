@@ -3,7 +3,7 @@ from typing import List
 
 from .schemas import ObservationPointer
 from .gcp_utils import list_files_in_bucket_with_suffix, list_files_in_bucket_with_prefix, get_public_url
-from project_config import RIVER_BUFFER_M
+from project_config import RIVER_BUFFER_M, ANNO_CONFIG
 
 from project_config import CLASS_CONFIG
 import numpy as np
@@ -217,13 +217,19 @@ class_nonmine_id = CLASS_CONFIG.get_class_id('other')
 
 def calc_class_proportion(labels):
     mask_mine = (labels == class_mine_id)
+    if ANNO_CONFIG.num_classes == 3: 
+        mask_lc = (labels == CLASS_CONFIG.get_class_id("lc"))
+        count_lc = np.sum(mask_lc)
     mask_nonmine = (labels == class_nonmine_id)
 
     count_mine = np.sum(mask_mine)
     count_nonemine = np.sum(mask_nonmine)
     count_total = len(labels)
 
-    assert count_total == count_mine + count_nonemine
+    if ANNO_CONFIG.num_classes == 2:
+        assert count_total == count_mine + count_nonemine
+    elif ANNO_CONFIG.num_classes == 3:
+        assert count_total == count_mine + count_lc + count_nonemine
     mine_percentage = count_mine/count_total * 100
     # nonmine_percentage = count_nonemine/count_total * 100
     return mine_percentage, count_mine

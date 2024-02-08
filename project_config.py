@@ -4,8 +4,8 @@ from experiment_configs.annotation_configs import two_class_config, three_class_
 # Annotation stuff
 # Set either 2-class of 3-class config as the annotation config
 
-ANNO_CONFIG = two_class_config # or 
-# ANNO_CONFIG = three_class_config
+# ANNO_CONFIG = two_class_config # or 
+ANNO_CONFIG = three_class_config
 
 #Set global variables
 CLASS_CONFIG = ANNO_CONFIG.class_config
@@ -14,7 +14,7 @@ LABELBOX_PROJECT_ID = ANNO_CONFIG.labelbox_project_id
 if ANNO_CONFIG.num_classes == 2:
     CLASS_NAME = 'sandmine'
 else:
-    CLASS_NAME = None #this should trigger an error wherever 3-class annotations rely on this    
+    CLASS_NAME = "other" #this should trigger an error wherever 3-class annotations rely on this    
 
 
 class S2Band(Enum):
@@ -55,7 +55,8 @@ RIVER_BUFFER_M = '1000m'
 # find the file path by looking for the latest version and date in the file name
 # e.g. annotations_json_v0.1_2021-04-08.json
 
-DATASET_JSON_PATH = 'dataset/dataset_v0.2_2023-11-26.json'
+# DATASET_JSON_PATH = 'dataset/dataset_v0.2_2023-11-26.json'
+DATASET_JSON_PATH = 'dataset/dataset_v0.1.1-test.json'
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'
 

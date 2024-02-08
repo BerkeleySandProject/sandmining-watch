@@ -1,6 +1,6 @@
 from enum import Enum
 
-from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig
+from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants
 from typing import Union
 
 
@@ -16,11 +16,16 @@ def print_trainable_parameters(model):
 
 
 def model_factory(
-        config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig] ,
+        config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig, ThreeClassSupervisedTrainingConfig] ,
         n_channels,
     ):
-    n_classes = 1
-    if config.num_upsampling_layers is None:
+    if isinstance(config, ThreeClassSupervisedTrainingConfig) and \
+        (config.three_class_method == ThreeClassVariants.B or 
+        config.three_class_method == ThreeClassVariants.C):
+        n_classes = 3
+    else:
+        n_classes = 1
+    if isinstance(config, SupervisedFinetuningConfig) and config.num_upsampling_layers is None:
         config.num_upsampling_layers = 2
 
     if config.model_type == ModelChoice.UnetSmall:
@@ -55,6 +60,9 @@ def model_factory(
     elif config.model_type == ModelChoice.ResNet50UNet:
         from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
         model = ResNetEncoderUNetDecoder("resnet50", n_channels, n_classes)
+    elif config.model_type == ModelChoice.Test:
+        import torch
+        model = torch.nn.Conv2d(n_channels, n_classes, 1)
     else:
         raise ValueError("Error in model selection")
     

@@ -4,6 +4,7 @@ from typing import Optional, List
 from rastervision.core.data import ClassConfig
 
 class ModelChoice(Enum):
+    Test = "test"
     UnetSmall = "unet-small"
     UnetOrig = "unet-orig"
     Segformer = "segformer"
@@ -38,6 +39,11 @@ class BackpropLossChoice(Enum):
     BCE = "BCE"
     DICE = "DICE"
 
+class ThreeClassVariants(Enum):
+    A = "a"
+    B = "b"
+    C = "c"
+
 @dataclass
 class SupervisedTrainingConfig:
     model_type: ModelChoice
@@ -51,6 +57,21 @@ class SupervisedTrainingConfig:
     learning_rate: float
     datasets: DatasetChoice
     mine_class_loss_weight: float
+
+@dataclass
+class ThreeClassSupervisedTrainingConfig:
+    model_type: ModelChoice
+    optimizer: OptimizerChoice
+    # scheduler: SchedulerChoice # wip, not yet implemented
+    tile_size: int
+    s2_channels: Optional[List[int]] # If none, RV will take all channels
+    s2_normalization: NormalizationS2Choice
+    batch_size: int
+    learning_rate: float
+    datasets: DatasetChoice
+    mine_class_loss_weight: float
+    three_class_method: ThreeClassVariants
+    low_confidence_weight: float
 
 class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
