@@ -43,7 +43,8 @@ testing_configA = ThreeClassSupervisedTrainingConfig(
     learning_rate=5e-4,
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=6.,
-    three_class_method=ThreeClassVariants.A,
+    loss_fn=BackpropLossChoice.BCE,
+    three_class_training_method=ThreeClassVariants.A,
     low_confidence_weight=0.
 )
 
@@ -57,7 +58,8 @@ testing_configB = ThreeClassSupervisedTrainingConfig(
     learning_rate=5e-4,
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=6.,
-    three_class_method=ThreeClassVariants.B,
+    loss_fn=BackpropLossChoice.BCE,
+    three_class_training_method=ThreeClassVariants.B,
     low_confidence_weight=0.
 )
 
@@ -71,7 +73,8 @@ testing_configC = ThreeClassSupervisedTrainingConfig(
     learning_rate=5e-4,
     datasets=DatasetChoice.S1S2,
     mine_class_loss_weight=6.,
-    three_class_method=ThreeClassVariants.C,
+    loss_fn=BackpropLossChoice.BCE,
+    three_class_training_method=ThreeClassVariants.C,
     low_confidence_weight=0.
 )
 
@@ -105,6 +108,29 @@ segformer_config = SupervisedTrainingConfig(
 # SSL4EO
 
 ssl4eo_resnet18_config = SupervisedFinetuningConfig(
+    model_type=ModelChoice.ResNet18UNet,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=None,
+    s2_normalization=NormalizationS2Choice.DivideBy10000,
+    batch_size=128,
+    learning_rate=5e-4,
+    datasets=DatasetChoice.S2_L1C,
+    mine_class_loss_weight=6.,
+    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth",
+    loss_fn=BackpropLossChoice.BCE
+)
+
+ssl4eo_resnet18_threeclass_configA = ThreeClassFineTuningConfig(
+    three_class_training_method=ThreeClassVariants.A,
+    low_confidence_weight=0.,
+    **vars(ssl4eo_resnet18_config)
+)
+
+ssl4eo_resnet18_threeclass_configB = ThreeClassFineTuningConfig(
+    three_class_training_method=ThreeClassVariants.B,
+    low_confidence_weight=0.,
     model_type=ModelChoice.ResNet18UNet,
     optimizer=OptimizerChoice.AdamW,
     tile_size=160,
@@ -172,6 +198,18 @@ satmae_large_config = SupervisedFinetuningConfig(
     smoothing_sigma=5.,
 )
 
+satmae_large_three_class_a_config = ThreeClassFineTuningConfig(
+    three_class_training_method=ThreeClassVariants.A,
+    low_confidence_weight=0.,
+    **vars(satmae_large_config)
+)
+
+satmae_large_three_class_b_config = ThreeClassFineTuningConfig(
+    three_class_training_method=ThreeClassVariants.B,
+    low_confidence_weight=0.,
+    **vars(satmae_large_config)
+)
+
 satmae_large_config_lora = SupervisedFinetuningConfig(
     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
@@ -206,6 +244,12 @@ satmae_large_config_lora_lp = SupervisedFinetuningConfig(
     num_upsampling_layers=2,
     apply_smoothing=True,
     smoothing_sigma=10.
+)
+
+satmae_large_config_lora_lp_methodA = ThreeClassFineTuningConfig(
+    three_class_training_method=ThreeClassVariants.A,
+    low_confidence_weight=0.,
+    **vars(satmae_large_config_lora_lp)
 )
 
 

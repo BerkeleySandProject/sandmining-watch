@@ -38,11 +38,19 @@ class DiceLoss2(nn.Module):
         return 1 - dice
     
 class WeightedBCE(nn.Module):
-    def __init__(self):
+    def __init__(self, nonmine_weight, mine_weight):
         super().__init__()
+        self.nonmine_weight = nonmine_weight
+        self.mine_weight = mine_weight
 
     def forward(self, inputs, targets):
         weights = (targets != 1) * 1    # Non low confidence will have weight of 1
+        weights[targets == 0] = self.nonmine_weight
+        weights[targets == 2] = self.mine_weight
+        
+        targets = targets.clone()
+        targets[targets == 2] = 1
+
         return F.binary_cross_entropy_with_logits(
             input=inputs,
             target=targets,
@@ -62,7 +70,9 @@ class WeightedDiceLoss(nn.Module):
 
         # non_lc_indexes = targets[targets != 1]
         inputs = inputs[targets != 1]
+        targets = targets.clone()
         targets = targets[targets != 1]
+        targets[targets == 2] = 1
         
         intersection = (inputs * targets).sum()                            
         dice = (2.*intersection)/(inputs.sum() + targets.sum() + smooth)

@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 from project_config import CLASS_CONFIG, WANDB_PROJECT_NAME, N_EDGE_PIXELS_DISCARD
 from experiment_configs.schemas import (SupervisedTrainingConfig, SupervisedFinetuningConfig, 
-                                        BackpropLossChoice, FinetuningStratagyChoice, ThreeClassSupervisedTrainingConfig, ThreeClassVariants)
+                                        BackpropLossChoice, FinetuningStratagyChoice, ThreeClassConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants)
 from ml.losses import DiceLoss, WeightedBCE, WeightedDiceLoss
 from ml.model_stats import count_number_of_weights
 from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
@@ -88,7 +88,10 @@ class BinarySegmentationLearner(ABC):
         self.model.to(device=self.device)
         
         if isinstance(config, ThreeClassSupervisedTrainingConfig) and config.three_class_method == ThreeClassVariants.A:
-            self.bce_loss = WeightedBCE()
+            self.bce_loss = WeightedBCE(
+                nonmine_weight=1.0,
+                mine_weight=config.mine_class_loss_weight
+            )
             self.dice_loss = WeightedDiceLoss()
         else:
             self.bce_loss = nn.BCEWithLogitsLoss(pos_weight=torch.as_tensor(config.mine_class_loss_weight))
@@ -123,7 +126,10 @@ class BinarySegmentationLearner(ABC):
             self.model = get_peft_model(model, config_lora)
 
 
-        self.class_names = CLASS_CONFIG.names
+        if isinstance(config, ThreeClassConfig) and config.three_class_training_method == ThreeClassVariants.A:
+            self.class_names = [CLASS_CONFIG.names[0], CLASS_CONFIG.names[2]]
+        else:
+            self.class_names = CLASS_CONFIG.names
         self.metric_names = self.build_metric_names()
 
         if load_model_weights:
@@ -271,20 +277,18 @@ class BinarySegmentationLearner(ABC):
         val_bce_losses = stack_values("val_bce_loss")
         val_dice_losses = stack_values("val_dice_loss")
 
+        if isinstance(self.config, ThreeClassConfig) and self.config.three_class_training_method == ThreeClassVariants.A:
+            out_probabilites = out_probabilites[ground_truths != 1]     # Filtering out low confidence
+            ground_truths = ground_truths[ground_truths != 1]           # ""
+            ground_truths[ground_truths == 2] = 1                       # Assigning high confidence to value 1 to work with binary outputs
+        
         out_classes =  self.prob_to_pred(out_probabilites)
-        if isinstance(self.config, ThreeClassSupervisedTrainingConfig) and self.config.three_class_method == ThreeClassVariants.A:
-            conf_mat = compute_conf_mat(
-                out_classes,
-                ground_truths,
-                num_labels=3, # we have two classes
-            )
-        else:
-            conf_mat = compute_conf_mat(
-                out_classes,
-                ground_truths,
-                num_labels=2, # we have two classes
-            )
-        conf_mat_metrics = three_class_conf_metrics(conf_mat, self.class_names)
+        conf_mat = compute_conf_mat(
+            out_classes,
+            ground_truths,
+            num_labels=2, # we have two classes
+        )
+        conf_mat_metrics = compute_conf_mat_metrics(conf_mat, self.class_names)
 
         # bap = BinaryAveragePrecision(thresholds=None)
         # average_precision1 = bap(out_probabilites, ground_truths)
@@ -900,7 +904,7 @@ class MultiSegmentationLearner(ABC):
         self.model = model
         self.model.to(device=self.device)
         
-        self.loss = nn.CrossEntropyLoss(self.to_device(torch.tensor([1, config.low_confidence_weight, config.mine_class_loss_weight]), self.device))
+        self.loss = nn.CrossEntropyLoss(weight=self.to_device(torch.tensor([1., config.low_confidence_weight, config.mine_class_loss_weight]), self.device))
         # self.loss = nn.CrossEntropyLoss()
 
         self.opt = optimizer
@@ -1078,12 +1082,15 @@ class MultiSegmentationLearner(ABC):
         conf_mat = compute_conf_mat(
             out_classes,
             ground_truths,
-            num_labels=3, # we have two classes
+            num_labels=3,
         )
         conf_mat_metrics = compute_conf_mat_metrics(conf_mat, self.class_names)
 
         # bap = BinaryAveragePrecision(thresholds=None)
         # average_precision1 = bap(out_probabilites, ground_truths)
+        out_probabilites = out_probabilites[ground_truths != 1]     # Filtering out low confidence
+        ground_truths = ground_truths[ground_truths != 1]           # ""
+        ground_truths[ground_truths == 2] = 1                       # Assigning high confidence to value 1 to work with binary outputs
 
         _,_,_, average_precision, best_threshold, best_f1_score = compute_metrics(ground_truths.cpu().numpy(), out_probabilites.cpu().numpy())
 

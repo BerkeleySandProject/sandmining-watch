@@ -4,7 +4,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import Dataset, Sampler
 
-from experiment_configs.schemas import SupervisedTrainingConfig, ClassConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants
+from experiment_configs.schemas import SupervisedTrainingConfig, ClassConfig, ThreeClassConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants
 from project_config import ANNO_CONFIG
 
 from torch import nn
@@ -22,7 +22,7 @@ def learner_factory(config: Union[SupervisedTrainingConfig, ThreeClassSupervised
                  step_scheduler: Optional['_LRScheduler'] = None,
                  save_model_checkpoints = False,
         ):
-    if ANNO_CONFIG.num_classes == 2 or (isinstance(config, ThreeClassSupervisedTrainingConfig) and config.three_class_method == ThreeClassVariants.A):
+    if ANNO_CONFIG.num_classes == 2 or (isinstance(config, ThreeClassConfig) and config.three_class_training_method == ThreeClassVariants.A):
         return BinarySegmentationLearner(
             config=config,
             model=model,

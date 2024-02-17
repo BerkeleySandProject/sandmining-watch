@@ -135,10 +135,6 @@ def compute_metrics(ground_truth, predicted_prob):
     # Apply the mask to ground_truth and predicted_prob
     valid_ground_truth = ground_truth[valid_mask]
     valid_predicted_prob = predicted_prob[valid_mask]
-    valid_predicted_prob = valid_predicted_prob[valid_ground_truth != 1]
-    valid_predicted_prob[valid_predicted_prob == 2] = 1
-    valid_ground_truth = valid_ground_truth[valid_ground_truth != 1]
-    valid_ground_truth[valid_ground_truth == 2] = 1
 
     predicted_class = valid_predicted_prob > 0.5
 

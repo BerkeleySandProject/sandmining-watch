@@ -1,6 +1,6 @@
 from enum import Enum
 
-from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants
+from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig, ThreeClassConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants
 from typing import Union
 
 
@@ -16,12 +16,12 @@ def print_trainable_parameters(model):
 
 
 def model_factory(
-        config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig, ThreeClassSupervisedTrainingConfig] ,
+        config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig, ThreeClassConfig] ,
         n_channels,
     ):
-    if isinstance(config, ThreeClassSupervisedTrainingConfig) and \
-        (config.three_class_method == ThreeClassVariants.B or 
-        config.three_class_method == ThreeClassVariants.C):
+    if isinstance(config, ThreeClassConfig) and \
+        (config.three_class_training_method == ThreeClassVariants.B or 
+        config.three_class_training_method == ThreeClassVariants.C):
         n_classes = 3
     else:
         n_classes = 1

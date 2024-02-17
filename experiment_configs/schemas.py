@@ -59,19 +59,13 @@ class SupervisedTrainingConfig:
     mine_class_loss_weight: float
 
 @dataclass
-class ThreeClassSupervisedTrainingConfig:
-    model_type: ModelChoice
-    optimizer: OptimizerChoice
-    # scheduler: SchedulerChoice # wip, not yet implemented
-    tile_size: int
-    s2_channels: Optional[List[int]] # If none, RV will take all channels
-    s2_normalization: NormalizationS2Choice
-    batch_size: int
-    learning_rate: float
-    datasets: DatasetChoice
-    mine_class_loss_weight: float
-    three_class_method: ThreeClassVariants
+class ThreeClassConfig:
+    three_class_training_method: ThreeClassVariants
     low_confidence_weight: float
+
+@dataclass
+class ThreeClassSupervisedTrainingConfig(SupervisedTrainingConfig, ThreeClassConfig):
+    pass
 
 class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
@@ -86,6 +80,10 @@ class SupervisedFinetuningConfig(SupervisedTrainingConfig):
     num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
     apply_smoothing: Optional[bool] = True
     smoothing_sigma: Optional[float] = 10.
+
+@dataclass
+class ThreeClassFineTuningConfig(SupervisedFinetuningConfig, ThreeClassConfig):
+    pass
 
 @dataclass
 class InferenceConfig(SupervisedTrainingConfig):
