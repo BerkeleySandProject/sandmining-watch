@@ -102,9 +102,8 @@ class BinarySegmentationLearner(ABC):
         else:
             self.last_model_weights_path = None
         
-        if save_model_checkpoints:
-            outdir_dir_folder_name = output_dir.split("/")[-1]
-            self.model_checkpoints_dir = f"/data/sand_mining/training_checkpoints/{outdir_dir_folder_name}"
+        if save_model_checkpoints and self.output_dir is not None:
+            self.model_checkpoints_dir = f"{self.output_dir}/checkpoints/"
             make_dir(self.model_checkpoints_dir)
             print(f"Will save weights after every epoch to {self.model_checkpoints_dir}")
         else:
@@ -460,7 +459,7 @@ class BinarySegmentationLearner(ABC):
         #     self.save_model_weights(self.last_model_weights_path)
 
         if self.model_checkpoints_dir:
-            torch.save(self.model.state_dict(), f"{self.model_checkpoints_dir}/after_epoch_{curr_epoch}.pth")
+            torch.save(self.model.state_dict(), f"{self.model_checkpoints_dir}/model_e{curr_epoch+1}.pth")
 
         # Log metrics to Weights&Biases
         if wandb.run is not None:

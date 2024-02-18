@@ -40,7 +40,7 @@ def create_new_dataset(client: Client, dataset_name) -> Dataset:
     new_dataset = client.create_dataset(name=dataset_name)
     return new_dataset
 
-def create_data_row_dict(img_url, global_key):
+def create_data_row_dict(img_url:str, global_key:str, location:str):
     assert MAPBOX_API_KEY is not None
     row_data = {
         "tile_layer_url": img_url,
@@ -57,10 +57,12 @@ def create_data_row_dict(img_url, global_key):
         "row_data" : row_data,
         "global_key" : global_key,
         "media_type": "TMS_GEO",
-        "metadata_fields": [{
-            "name": "imageDateS2",
-            "value": get_date_from_key(global_key)
-        }]
+        "metadata_fields": [
+            {"name": "imageDateS2",
+             "value": get_date_from_key(global_key)},
+             {"name": "location",
+              "value": location}
+            ]
     }
     return data_row_dict
 
