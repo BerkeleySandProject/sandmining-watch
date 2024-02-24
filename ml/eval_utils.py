@@ -126,8 +126,8 @@ def center_crop(array, n_crop_pixels=0):
     """
     return array[n_crop_pixels:-n_crop_pixels, n_crop_pixels:-n_crop_pixels] if n_crop_pixels > 0 else array
 
-def compute_metrics(ground_truth, predicted_prob):
-
+def compute_metrics(ground_truth, predicted_prob, predicted_class=None):
+    eps = 1e-6
     valid_mask = ~np.isnan(predicted_prob)  # Create a mask for valid (non-nan) values
 
     # print("Number of valid pixels: ",valid_mask.sum())
@@ -136,19 +136,22 @@ def compute_metrics(ground_truth, predicted_prob):
     valid_ground_truth = ground_truth[valid_mask]
     valid_predicted_prob = predicted_prob[valid_mask]
 
-    predicted_class = valid_predicted_prob > 0.5
+    if predicted_class is None:
+        predicted_class = valid_predicted_prob > 0.5
+    else:
+        predicted_class = predicted_class[valid_mask]
 
     TP = ((predicted_class == 1) & (valid_ground_truth == 1)).sum()  # True Positives
     FP = ((predicted_class == 1) & (valid_ground_truth == 0)).sum()  # False Positives
     FN = ((predicted_class == 0) & (valid_ground_truth == 1)).sum()  # False Negatives
     TN = ((predicted_class == 0) & (valid_ground_truth == 0)).sum()  # True Negatives
 
-    precision = TP / (TP + FP)
-    recall = TP / (TP + FN)
+    precision = TP / (TP + FP + eps)
+    recall = TP / (TP + FN + eps)
     f1_score = 2 * (precision * recall) / (precision + recall)
 
     precisions_t, recalls_t, thresholds = precision_recall_curve(valid_ground_truth, valid_predicted_prob)
-    f1_scores_t = 2 * (precisions_t * recalls_t) / (precisions_t + recalls_t)
+    f1_scores_t = 2 * (precisions_t * recalls_t) / (precisions_t + recalls_t + eps)
 
     average_precision = average_precision_score(valid_ground_truth, valid_predicted_prob)
 

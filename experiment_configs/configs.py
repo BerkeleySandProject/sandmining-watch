@@ -34,48 +34,21 @@ testing_config = SupervisedTrainingConfig(
 )
 
 testing_configA = ThreeClassSupervisedTrainingConfig(
-    model_type=ModelChoice.Test,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=160,
-    s2_channels=fully_supervised_band_selection_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=128,
-    learning_rate=5e-4,
-    datasets=DatasetChoice.S1S2,
-    mine_class_loss_weight=6.,
-    loss_fn=BackpropLossChoice.BCE,
     three_class_training_method=ThreeClassVariants.A,
-    low_confidence_weight=0.
+    low_confidence_weight=0.,
+    **vars(testing_config)
 )
 
 testing_configB = ThreeClassSupervisedTrainingConfig(
-    model_type=ModelChoice.Test,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=160,
-    s2_channels=fully_supervised_band_selection_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=128,
-    learning_rate=5e-4,
-    datasets=DatasetChoice.S1S2,
-    mine_class_loss_weight=6.,
-    loss_fn=BackpropLossChoice.BCE,
     three_class_training_method=ThreeClassVariants.B,
-    low_confidence_weight=0.
+    low_confidence_weight=0.,
+    **vars(testing_config)
 )
 
 testing_configC = ThreeClassSupervisedTrainingConfig(
-    model_type=ModelChoice.Test,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=160,
-    s2_channels=fully_supervised_band_selection_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=128,
-    learning_rate=5e-4,
-    datasets=DatasetChoice.S1S2,
-    mine_class_loss_weight=6.,
-    loss_fn=BackpropLossChoice.BCE,
     three_class_training_method=ThreeClassVariants.C,
-    low_confidence_weight=0.
+    low_confidence_weight=1.,
+    **vars(testing_config)
 )
 
 unet_config = SupervisedTrainingConfig(
@@ -191,7 +164,7 @@ satmae_large_config = SupervisedFinetuningConfig(
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=6.,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/home/ando/sandmining-watch/out/weights/pretrain-vit-large-e199.pth",
+    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
     loss_fn=BackpropLossChoice.BCE,
     num_upsampling_layers=2,
     apply_smoothing=True,

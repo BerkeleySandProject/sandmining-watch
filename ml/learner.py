@@ -272,17 +272,17 @@ class BinarySegmentationLearner(ABC):
         def stack_values(key):
             return torch.stack([o[key] for o in outputs])
         
-        out_probabilites = concat_values("out_probabilities")
+        out_probabilities = concat_values("out_probabilities")
         ground_truths = concat_values("ground_truth")
         val_bce_losses = stack_values("val_bce_loss")
         val_dice_losses = stack_values("val_dice_loss")
 
         if isinstance(self.config, ThreeClassConfig) and self.config.three_class_training_method == ThreeClassVariants.A:
-            out_probabilites = out_probabilites[ground_truths != 1]     # Filtering out low confidence
+            out_probabilities = out_probabilities[ground_truths != 1]     # Filtering out low confidence
             ground_truths = ground_truths[ground_truths != 1]           # ""
             ground_truths[ground_truths == 2] = 1                       # Assigning high confidence to value 1 to work with binary outputs
         
-        out_classes =  self.prob_to_pred(out_probabilites)
+        out_classes =  self.prob_to_pred(out_probabilities)
         conf_mat = compute_conf_mat(
             out_classes,
             ground_truths,
@@ -293,7 +293,7 @@ class BinarySegmentationLearner(ABC):
         # bap = BinaryAveragePrecision(thresholds=None)
         # average_precision1 = bap(out_probabilites, ground_truths)
 
-        _,_,_, average_precision, best_threshold, best_f1_score = compute_metrics(ground_truths.cpu().numpy(), out_probabilites.cpu().numpy())
+        _,_,_, average_precision, best_threshold, best_f1_score = compute_metrics(ground_truths.cpu().numpy(), out_probabilities.cpu().numpy())
 
         metrics = {
             **conf_mat_metrics,
@@ -1042,7 +1042,7 @@ class MultiSegmentationLearner(ABC):
         x, y = batch
         out = self.post_forward(self.model(x))
         val_ce_loss = self.loss(out, y)
-        out_probabilities = self.prob_to_pred(out).view(-1)
+        out_probabilities = out.softmax(dim=1)
 
         return {
             "val_ce_loss": val_ce_loss,
@@ -1074,11 +1074,11 @@ class MultiSegmentationLearner(ABC):
         def stack_values(key):
             return torch.stack([o[key] for o in outputs])
         
-        out_probabilites = concat_values("out_probabilities")
+        out_probabilities = concat_values("out_probabilities")
         ground_truths = concat_values("ground_truth")
         val_ce_losses = stack_values("val_ce_loss")
 
-        out_classes =  out_probabilites
+        out_classes =  self.prob_to_pred(out_probabilities.view(num_samples, 3, self.config.tile_size, self.config.tile_size)).reshape(-1)
         conf_mat = compute_conf_mat(
             out_classes,
             ground_truths,
@@ -1088,11 +1088,15 @@ class MultiSegmentationLearner(ABC):
 
         # bap = BinaryAveragePrecision(thresholds=None)
         # average_precision1 = bap(out_probabilites, ground_truths)
-        out_probabilites = out_probabilites[ground_truths != 1]     # Filtering out low confidence
+        high_conf_probs = out_probabilities.reshape(num_samples, 3, self.config.tile_size, self.config.tile_size)[:, 2, :, :]     # Select only high confidence sandmine
+        high_conf_probs = high_conf_probs.reshape(-1)
+        high_conf_probs = high_conf_probs[ground_truths != 1]       # Filtering out low confidence
+        predicted_classes = out_classes[ground_truths != 1]         # ""
         ground_truths = ground_truths[ground_truths != 1]           # ""
-        ground_truths[ground_truths == 2] = 1                       # Assigning high confidence to value 1 to work with binary outputs
+        predicted_classes[predicted_classes == 2] = 1               # Assigning high confidence to value 1 to work with binary outputs
+        ground_truths[ground_truths == 2] = 1                       # ""
 
-        _,_,_, average_precision, best_threshold, best_f1_score = compute_metrics(ground_truths.cpu().numpy(), out_probabilites.cpu().numpy())
+        _,_,_, average_precision, best_threshold, best_f1_score = compute_metrics(ground_truths.cpu().numpy(), high_conf_probs.cpu().numpy(), predicted_classes.cpu().numpy())
 
         metrics = {
             **conf_mat_metrics,
