@@ -1,3 +1,5 @@
+from logging import config
+from pdb import run
 from typing import (TYPE_CHECKING, Any, Dict, Iterator, List,
                     Optional, Tuple, Union)
 from typing_extensions import Literal
@@ -41,9 +43,6 @@ from ml.model_stats import count_number_of_weights
 from utils.wandb_utils import create_semantic_segmentation_image, create_predicted_probabilities_image
 from ml.eval_utils import compute_metrics
 
-from peft import LoraConfig, get_peft_model
-from experiment_configs.configs import lora_config
-
 
 warnings.filterwarnings('ignore')
 
@@ -75,7 +74,6 @@ class BinarySegmentationLearner(ABC):
                  step_scheduler: Optional['_LRScheduler'] = None,
                  save_model_checkpoints = False,
                  load_model_weights = False,
-                 config_lora:LoraConfig = lora_config
                  ):
         self.config = config
         self.device = torch.device('cuda'
@@ -87,7 +85,7 @@ class BinarySegmentationLearner(ABC):
         self.model = model
         self.model.to(device=self.device)
         
-        if isinstance(config, ThreeClassSupervisedTrainingConfig) and config.three_class_method == ThreeClassVariants.A:
+        if isinstance(config, ThreeClassConfig) and config.three_class_training_method == ThreeClassVariants.A:
             self.bce_loss = WeightedBCE(
                 nonmine_weight=1.0,
                 mine_weight=config.mine_class_loss_weight
@@ -120,12 +118,6 @@ class BinarySegmentationLearner(ABC):
         else:
             self.model_checkpoints_dir = None
 
-
-        if isinstance(config, SupervisedFinetuningConfig) and config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
-            print ("Applying LoRA ...")
-            self.model = get_peft_model(model, config_lora)
-
-
         if isinstance(config, ThreeClassConfig) and config.three_class_training_method == ThreeClassVariants.A:
             self.class_names = [CLASS_CONFIG.names[0], CLASS_CONFIG.names[2]]
         else:
@@ -141,7 +133,7 @@ class BinarySegmentationLearner(ABC):
     def wrapup(self):
         """ Called after all epochs are completed
         """
-        if isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
+        if isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA_LP or config.fileConfig == FinetuningStratagyChoice.LoRA_E2E:
             self.merge_lora_weights()
 
         if self.last_model_weights_path:
@@ -511,10 +503,11 @@ class BinarySegmentationLearner(ABC):
         )
         return config_to_log
 
-    def initialize_wandb_run(self):
+    def initialize_wandb_run(self, run_name=None):
         wandb.init(
             project=WANDB_PROJECT_NAME,
             config=self.get_config_dict_for_wandb_log(),
+            name=run_name,
         )
         wandb.define_metric("val_bce_loss", summary="min")
         wandb.define_metric("val_dice_loss", summary="min")
@@ -892,7 +885,6 @@ class MultiSegmentationLearner(ABC):
                  step_scheduler: Optional['_LRScheduler'] = None,
                  save_model_checkpoints = False,
                  load_model_weights = False,
-                 config_lora:LoraConfig = lora_config,
                  ):
         self.config = config
         self.device = torch.device('cuda'
@@ -929,12 +921,6 @@ class MultiSegmentationLearner(ABC):
         else:
             self.model_checkpoints_dir = None
 
-
-        if isinstance(config, SupervisedFinetuningConfig) and config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
-            print ("Applying LoRA ...")
-            self.model = get_peft_model(model, config_lora)
-
-
         self.class_names = CLASS_CONFIG.names
         self.metric_names = self.build_metric_names()
 
@@ -947,7 +933,7 @@ class MultiSegmentationLearner(ABC):
     def wrapup(self):
         """ Called after all epochs are completed
         """
-        if isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
+        if isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA_LP or config.fileConfig == FinetuningStratagyChoice.LoRA_E2E:
             self.merge_lora_weights()
 
         if self.last_model_weights_path:
@@ -1299,13 +1285,13 @@ class MultiSegmentationLearner(ABC):
         )
         return config_to_log
 
-    def initialize_wandb_run(self):
+    def initialize_wandb_run(self, run_name=None):
         wandb.init(
             project=WANDB_PROJECT_NAME,
             config=self.get_config_dict_for_wandb_log(),
+            name=run_name,
         )
-        wandb.define_metric("val_bce_loss", summary="min")
-        wandb.define_metric("val_dice_loss", summary="min")
+        wandb.define_metric("val_ce_loss", summary="min")
         wandb.define_metric("sandmine_f1", summary="max")
         wandb.define_metric("sandmine_average_precision", summary="max")
         wandb.watch(self.model, log_freq=100, log_graph=True)

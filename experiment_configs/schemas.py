@@ -71,7 +71,8 @@ class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
     LinearProbing = "linear-probing" # Encoder weights are frozen
     FreezeEmbed = "freeze-embed" # Only applicable for ViT! Patch embed layer is frozen.
-    LoRA = "lora" # Low Rank Adaptation
+    LoRA_LP = "lora-lp" # Low Rank Adaptation Linear Probing
+    LoRA_E2E = "lora-e2e" # Low Rank Adaptation End to End
 
 @dataclass
 class SupervisedFinetuningConfig(SupervisedTrainingConfig):

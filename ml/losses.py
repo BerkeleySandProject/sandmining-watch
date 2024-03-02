@@ -50,6 +50,7 @@ class WeightedBCE(nn.Module):
         
         targets = targets.clone()
         targets[targets == 2] = 1
+        # assert (0 <= targets <= 1).all()
 
         return F.binary_cross_entropy_with_logits(
             input=inputs,

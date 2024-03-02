@@ -16,13 +16,12 @@ import os, torch
 # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:32" #to prevent cuda out of memory error
 torch.cuda.empty_cache()
 
-
 #For reproducibility
 torch.manual_seed(13)
 
 
 from experiment_configs.configs import *
-config = satmae_large_three_class_b_config
+config = satmae_large_config_lora_methodB
 
 
 from torch.utils.data import ConcatDataset
@@ -52,7 +51,7 @@ max_cluster_id = max([observation['cluster_id'] for observation in dataset_json]
 
 # Randomly split the data into training and validation
 # val_split = random.randint(0, max_cluster_id+1)
-val_split = 3
+val_split = 0
 
 training_scenes = []
 validation_scenes = []
@@ -87,11 +86,13 @@ mine_percentage_aoi = characterize_dataset(training_scenes, validation_scenes)
 from models.model_factory import model_factory, print_trainable_parameters
 from ml.optimizer_factory import optimizer_factory
 from ml.learner_factory import learner_factory
+from experiment_configs.schemas import ThreeClassVariants
 
 _, _, n_channels = training_datasets[0].scene.raster_source.shape
 model = model_factory(
     config,
     n_channels=n_channels,
+    config_lora=lora_config
 )
 
 optimizer = optimizer_factory(config, model)
@@ -102,11 +103,16 @@ learner = learner_factory(
     optimizer=optimizer,
     train_ds=train_dataset_merged,  # for development and debugging, use training_datasets[0] or similar to speed up
     valid_ds=val_dataset_merged,  # for development and debugging, use training_datasets[1] or similar to speed up
-    output_dir=expanduser("~/sandmining-watch/out/OUTPUT_DIR"),
+    output_dir=expanduser("~/sandmining-watch/out/OUTPUT_DIR")
 )
 print_trainable_parameters(learner.model)
 
 
-learner.initialize_wandb_run()
+# Run this cell if you want to log the run to W&B. You might need to authenticate to W&B.
+learner.initialize_wandb_run(run_name="Satmae-Large-Lora-MethodB-R3")
+
 
 learner.train(epochs=20)
+
+import wandb
+wandb.finish()

@@ -193,8 +193,8 @@ satmae_large_config_lora = SupervisedFinetuningConfig(
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/home/ando/sandmining-watch/out/weights/pretrain-vit-large-e199.pth",
+    finetuning_strategy=FinetuningStratagyChoice.LoRA_LP,
+    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
     loss_fn=BackpropLossChoice.BCE,
     num_upsampling_layers=2,
     apply_smoothing=True,
@@ -211,7 +211,7 @@ satmae_large_config_lora_lp = SupervisedFinetuningConfig(
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+    finetuning_strategy=FinetuningStratagyChoice.LoRA_LP,
     encoder_weights_path="/home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_SmoothVal-E9.pth",
     loss_fn=BackpropLossChoice.BCE,
     num_upsampling_layers=2,
@@ -219,12 +219,17 @@ satmae_large_config_lora_lp = SupervisedFinetuningConfig(
     smoothing_sigma=10.
 )
 
-satmae_large_config_lora_lp_methodA = ThreeClassFineTuningConfig(
+satmae_large_config_lora_methodA = ThreeClassFineTuningConfig(
     three_class_training_method=ThreeClassVariants.A,
     low_confidence_weight=0.,
-    **vars(satmae_large_config_lora_lp)
+    **vars(satmae_large_config_lora)
 )
 
+satmae_large_config_lora_methodB = ThreeClassFineTuningConfig(
+    three_class_training_method=ThreeClassVariants.B,
+    low_confidence_weight=1.,
+    **vars(satmae_large_config_lora)
+)
 
 
 ## Inference

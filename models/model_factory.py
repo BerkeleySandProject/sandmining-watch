@@ -3,6 +3,8 @@ from enum import Enum
 from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig, ThreeClassConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants
 from typing import Union
 
+from peft import LoraConfig, get_peft_model
+
 
 def print_trainable_parameters(model):
     trainable_params = 0
@@ -18,6 +20,7 @@ def print_trainable_parameters(model):
 def model_factory(
         config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig, ThreeClassConfig] ,
         n_channels,
+        config_lora=None
     ):
     if isinstance(config, ThreeClassConfig) and \
         (config.three_class_training_method == ThreeClassVariants.B or 
@@ -72,9 +75,9 @@ def model_factory(
         if config.encoder_weights_path:
             model.load_encoder_weights(config.encoder_weights_path)
 
-        if config.finetuning_strategy == FinetuningStratagyChoice.End2EndFinetuning or config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
+        if config.finetuning_strategy == FinetuningStratagyChoice.End2EndFinetuning or config.finetuning_strategy == FinetuningStratagyChoice.LoRA_E2E:
             pass
-        elif config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing:
+        elif config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing or config.finetuning_strategy == FinetuningStratagyChoice.LoRA_LP:
             model.freeze_encoder_weights()
         elif config.finetuning_strategy == FinetuningStratagyChoice.FreezeEmbed:
             model.freeze_embed_weights()
@@ -97,5 +100,12 @@ def model_factory(
             # print(f'Parameter {name} has changed')
             count += 1
     print(f'Number of parameters loaded: {count}')
+    
+    if isinstance(config, SupervisedFinetuningConfig) and config.finetuning_strategy == FinetuningStratagyChoice.LoRA_LP:
+        if config_lora is None:
+            raise ValueError("No lora config passed.")
+        else:
+            print ("Applying LoRA ...")
+            model = get_peft_model(model, config_lora)
     
     return model
