@@ -43,7 +43,7 @@ GCP_PROJECT_NAME = "gee-sand"
 BUCKET_NAME = "sand_mining_median"
 
 # Weight and Biases
-WANDB_PROJECT_NAME = "sandmine_detector_three_class"
+WANDB_PROJECT_NAME = "sandmine_spatially_random"
 
 #To use river AOIs set this to TRUE
 USE_RIVER_AOIS = True
@@ -56,7 +56,7 @@ RIVER_BUFFER_M = '1000m'
 # e.g. annotations_json_v0.1_2021-04-08.json
 
 # DATASET_JSON_PATH = 'dataset/dataset_v0.2_2023-11-26.json'
-DATASET_JSON_PATH = 'dataset/dataset_v0.2.3-test.json'
+DATASET_JSON_PATH = 'dataset/dataset_v0.2.5-sr.json'
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'
 

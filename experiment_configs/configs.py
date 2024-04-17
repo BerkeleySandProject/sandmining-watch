@@ -171,18 +171,6 @@ satmae_large_config = SupervisedFinetuningConfig(
     smoothing_sigma=5.,
 )
 
-satmae_large_three_class_a_config = ThreeClassFineTuningConfig(
-    three_class_training_method=ThreeClassVariants.A,
-    low_confidence_weight=0.,
-    **vars(satmae_large_config)
-)
-
-satmae_large_three_class_b_config = ThreeClassFineTuningConfig(
-    three_class_training_method=ThreeClassVariants.B,
-    low_confidence_weight=0.,
-    **vars(satmae_large_config)
-)
-
 satmae_large_config_lora = SupervisedFinetuningConfig(
     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
@@ -193,7 +181,7 @@ satmae_large_config_lora = SupervisedFinetuningConfig(
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LoRA_LP,
+    finetuning_strategy=FinetuningStratagyChoice.LoRA,
     encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
     loss_fn=BackpropLossChoice.BCE,
     num_upsampling_layers=2,
@@ -211,7 +199,7 @@ satmae_large_config_lora_lp = SupervisedFinetuningConfig(
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LoRA_LP,
+    finetuning_strategy=FinetuningStratagyChoice.LoRA,
     encoder_weights_path="/home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_SmoothVal-E9.pth",
     loss_fn=BackpropLossChoice.BCE,
     num_upsampling_layers=2,
@@ -253,6 +241,18 @@ satmae_large_inf_config = InferenceConfig(
     mean_threshold=0.51,
 )
 
+satmae_large_methodb_inf_config = ThreeClassInferenceConfig(
+    three_class_training_method=ThreeClassVariants.B,
+    low_confidence_weight=1.,
+    **vars(satmae_large_inf_config)
+)
+
+satmae_large_methoda_inf_config = ThreeClassInferenceConfig(
+    three_class_training_method=ThreeClassVariants.A,
+    low_confidence_weight=0.,
+    **vars(satmae_large_inf_config)
+)
+
 satmae_large_inf_config1 = InferenceConfig(
     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
@@ -271,8 +271,6 @@ satmae_large_inf_config1 = InferenceConfig(
     wandb_id='sandmining-watch/sandmine_detector/mvuyz9n4',
     mean_threshold=0.4336,
 )
-
-
 
 
 

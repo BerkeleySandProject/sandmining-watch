@@ -75,9 +75,7 @@ def model_factory(
         if config.encoder_weights_path:
             model.load_encoder_weights(config.encoder_weights_path)
 
-        if config.finetuning_strategy == FinetuningStratagyChoice.End2EndFinetuning or config.finetuning_strategy == FinetuningStratagyChoice.LoRA_E2E:
-            pass
-        elif config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing or config.finetuning_strategy == FinetuningStratagyChoice.LoRA_LP:
+        if config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing or config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
             model.freeze_encoder_weights()
         elif config.finetuning_strategy == FinetuningStratagyChoice.FreezeEmbed:
             model.freeze_embed_weights()
@@ -101,7 +99,7 @@ def model_factory(
             count += 1
     print(f'Number of parameters loaded: {count}')
     
-    if isinstance(config, SupervisedFinetuningConfig) and config.finetuning_strategy == FinetuningStratagyChoice.LoRA_LP:
+    if isinstance(config, SupervisedFinetuningConfig) and not isinstance(config, InferenceConfig) and config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
         if config_lora is None:
             raise ValueError("No lora config passed.")
         else:

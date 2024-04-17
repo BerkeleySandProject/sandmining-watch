@@ -36,8 +36,8 @@ class NormalizationS2Choice(Enum):
     DivideBy10000 = "divideby10000"  # Used by SSL4EO
 
 class BackpropLossChoice(Enum):
-    BCE = "BCE"
-    DICE = "DICE"
+    BCE = "bce_loss"
+    DICE = "dice_loss"
 
 class ThreeClassVariants(Enum):
     A = "a"
@@ -71,8 +71,7 @@ class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
     LinearProbing = "linear-probing" # Encoder weights are frozen
     FreezeEmbed = "freeze-embed" # Only applicable for ViT! Patch embed layer is frozen.
-    LoRA_LP = "lora-lp" # Low Rank Adaptation Linear Probing
-    LoRA_E2E = "lora-e2e" # Low Rank Adaptation End to End
+    LoRA = "lora" # Low Rank Adaptation Linear Probing
 
 @dataclass
 class SupervisedFinetuningConfig(SupervisedTrainingConfig):
@@ -95,6 +94,10 @@ class InferenceConfig(SupervisedTrainingConfig):
     smoothing_sigma: Optional[float] = 10.
     wandb_id: Optional[str] = None
     mean_threshold: Optional[float] = None
+    
+@dataclass 
+class ThreeClassInferenceConfig(InferenceConfig, ThreeClassConfig):
+    pass
 
 
 ## Annotation stuff

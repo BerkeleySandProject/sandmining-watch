@@ -20,6 +20,37 @@ from typing import TYPE_CHECKING, Optional, List, Tuple
 from shapely.geometry import Polygon
 import geopandas as gpd
 from rasterio.features import rasterize
+from rastervision.pipeline import registry_ as registry
+from rastervision.pipeline.file_system.http_file_system import HttpFileSystem
+from google.cloud import storage
+from urllib.parse import urlparse
+
+
+class GoogleCloudFileSystem(HttpFileSystem):
+    storage_client = None
+    
+    def __init__(self) -> None:
+        super().__init__()
+        
+    @staticmethod
+    def matches_uri(uri: str, mode: str) -> bool:
+        parsed_uri = urlparse(uri)
+        return parsed_uri.netloc == "storage.googleapis.com"
+    
+    @staticmethod
+    def copy_from(src_uri: str, dst_path: str) -> None:
+        if GoogleCloudFileSystem.storage_client is None:
+            super().copy_from(src_uri, dst_path)
+            return
+        
+        parsed_uri = urlparse(src_uri)
+        bucket_name = parsed_uri.path.split("/")[1]
+        src_file_path = "/".join(parsed_uri.path.split("/")[2:])
+        bucket = GoogleCloudFileSystem.storage_client.get_bucket(bucket_name)
+        blob = bucket.get_blob(src_file_path)
+        blob.download_to_filename(dst_path)
+
+registry.file_systems.insert(0, GoogleCloudFileSystem)
 
 def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
     if config.datasets == DatasetChoice.S1S2:

@@ -222,8 +222,11 @@ def cluster_observations(gdf: gpd.GeoDataFrame, min_cluster_size=2, max_cluster_
     else:
         epsilon = 0.
 
-    hdb = HDBSCAN(min_cluster_size=min_cluster_size, metric='haversine',cluster_selection_epsilon=epsilon, max_cluster_size=max_cluster_size)\
-        .fit(np.radians(coords))
+    hdb = HDBSCAN(min_cluster_size=min_cluster_size, 
+                  max_cluster_size=max_cluster_size,
+                  metric="haversine",
+                  cluster_selection_epsilon=epsilon,
+                  ).fit(np.radians(coords))
 
     count = 0
 

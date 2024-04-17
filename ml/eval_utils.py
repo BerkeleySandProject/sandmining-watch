@@ -5,7 +5,7 @@ import wandb
 
 from utils.wandb_utils import create_semantic_segmentation_image
 
-from project_config import N_EDGE_PIXELS_DISCARD
+from project_config import N_EDGE_PIXELS_DISCARD, ANNO_CONFIG
 
 
 def evaluate_predictions(prediction_results):
@@ -28,6 +28,14 @@ def evaluate_predictions(prediction_results):
         observation_name = prediction_result_dict['name']
         #also crop the rgb image so that the dimensions match with predictions and gt
         prediction_result_dict['rgb_img'] = center_crop(prediction_result_dict['rgb_img'], prediction_result_dict['crop_sz'])
+
+        if ANNO_CONFIG.num_classes == 3:
+            mask = gt != 1
+            prediction = prediction[mask]
+            gt = gt[mask]
+            gt[gt == 2] = 1
+            if prediction.shape[0] == 3:
+                prediction = prediction[2]
 
         all_predictions_list.append(prediction)
         all_gt_list.append(gt)

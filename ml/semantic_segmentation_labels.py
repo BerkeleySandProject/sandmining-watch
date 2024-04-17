@@ -307,16 +307,18 @@ class SemanticSegmentationSmoothLabelsCustom(SemanticSegmentationLabelsCustom):
         :return: smoothed scores
         """
 
-        smoothed = np.zeros((num_classes, pixel_class_scores.shape[0], pixel_class_scores.shape[1]))
-        applied_kernel = self.apply_edge_based_gaussian2D(pixel_class_scores.shape[0], pixel_class_scores.shape[1])
+        smoothed = np.zeros((num_classes, pixel_class_scores.shape[-2], pixel_class_scores.shape[-1]))
+        applied_kernel = self.apply_edge_based_gaussian2D(pixel_class_scores.shape[-2], pixel_class_scores.shape[-1])
+        if len(pixel_class_scores.shape) == 2:
+            pixel_class_scores = np.expand_dims(pixel_class_scores, dim=0)
 
        
         for i in range(num_classes):
 
             if self.apply_kernel:
-                smoothed[i] = applied_kernel  * pixel_class_scores
+                smoothed[i] = applied_kernel  * pixel_class_scores[i]
             else:
-                smoothed[i] = pixel_class_scores
+                smoothed[i] = pixel_class_scores[i]
 
         return smoothed, applied_kernel
 

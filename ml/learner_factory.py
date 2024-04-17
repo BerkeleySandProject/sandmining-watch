@@ -9,8 +9,7 @@ from project_config import ANNO_CONFIG
 
 from torch import nn
 
-from .learner import BinarySegmentationLearner, MultiSegmentationLearner
-# from .multiclass_learner import MultiSegmentationLearner
+from .learner_new import BinarySegmentationLearner, MultiSegmentationLearner
 
 def learner_factory(config: Union[SupervisedTrainingConfig, ThreeClassSupervisedTrainingConfig],
                  model: nn.Module,
@@ -21,6 +20,7 @@ def learner_factory(config: Union[SupervisedTrainingConfig, ThreeClassSupervised
                  epoch_scheduler: Optional['_LRScheduler'] = None,
                  step_scheduler: Optional['_LRScheduler'] = None,
                  save_model_checkpoints = False,
+                 load_model_weights=False,
         ):
     if ANNO_CONFIG.num_classes == 2 or (isinstance(config, ThreeClassConfig) and config.three_class_training_method == ThreeClassVariants.A):
         return BinarySegmentationLearner(
@@ -33,6 +33,7 @@ def learner_factory(config: Union[SupervisedTrainingConfig, ThreeClassSupervised
             epoch_scheduler=epoch_scheduler,
             step_scheduler=step_scheduler,
             save_model_checkpoints=save_model_checkpoints,
+            load_model_weights=load_model_weights,
         )
     elif ANNO_CONFIG.num_classes > 2:
         return MultiSegmentationLearner(
@@ -45,6 +46,7 @@ def learner_factory(config: Union[SupervisedTrainingConfig, ThreeClassSupervised
             epoch_scheduler=epoch_scheduler,
             step_scheduler=step_scheduler,
             save_model_checkpoints=save_model_checkpoints,
+            load_model_weights=load_model_weights,
         )
     else:
         raise ValueError("Learner Choice unknown (invalid number of classes).")
