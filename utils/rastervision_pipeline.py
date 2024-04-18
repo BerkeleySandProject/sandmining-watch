@@ -298,7 +298,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     for aoi in scene.aoi_polygons:
         aoi_area += aoi.area
 
-    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 2    
+    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 4
     # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
     ds = SemanticSegmentationRandomWindowGeoDataset(
         scene,

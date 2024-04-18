@@ -56,7 +56,7 @@ RIVER_BUFFER_M = '1000m'
 # e.g. annotations_json_v0.1_2021-04-08.json
 
 # DATASET_JSON_PATH = 'dataset/dataset_v0.2_2023-11-26.json'
-DATASET_JSON_PATH = 'dataset/dataset_v0.2.5-sr.json'
+DATASET_JSON_PATH = 'dataset/dataset_v0.2.5-sr-seed0.json'
 
 RIVER_NETWORKS_DIR = '/data/sand_mining/rivers/'
 

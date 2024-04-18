@@ -130,7 +130,7 @@ class Learner(ABC):
             self.merge_lora_weights()
 
         if self.last_model_weights_path:
-            self.save_model_weights(self.last_model_weights_path)
+            self.save_model_weights(self.last_model_weights_path, False)
 
     def merge_lora_weights(self):
         print("Merging LoRa weights ...")   
@@ -396,11 +396,10 @@ class Learner(ABC):
         """Hook that is called at start of train routine."""
         pass
     
-    def save_model_weights(self, path: str):
+    def save_model_weights(self, path: str, save_lora=True):
         """Save model weights to path."""
         print("Saving model weights to {}".format(path))
-        if isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
-        #     self.merge_lora_weights()
+        if save_lora and isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
             self.model.save_pretrained(".".join(path.split(".")[:-1]))
             
         torch.save(self.model.state_dict(), path)
@@ -589,7 +588,7 @@ class BinarySegmentationLearner(Learner):
         # From batch_size x n_classes x width x height
         # To batch_size x width x height
         # Do this to work with PyTorch's BCEWithLogitsLoss
-        return x.squeeze()
+        return x.squeeze(dim=1)
     
     def prob_to_pred(self, x, threshold=0.5):
         return (x > threshold).int()
