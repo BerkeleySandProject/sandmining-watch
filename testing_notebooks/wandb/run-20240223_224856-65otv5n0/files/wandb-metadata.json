@@ -1,0 +1,285 @@
+{
+    "os": "Linux-4.18.0-513.11.1.el8_9.x86_64-x86_64-with-glibc2.28",
+    "python": "3.9.17",
+    "heartbeatAt": "2024-02-24T06:48:57.340954",
+    "startedAt": "2024-02-24T06:48:56.787923",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/sushant.h.vema/sandmining/sandmining-watch/testing_notebooks/3class-MethodB.py",
+    "codePath": "testing_notebooks/3class-MethodB.py",
+    "git": {
+        "remote": "https://github.com/BerkeleySandProject/sandmining-watch.git",
+        "commit": "cad1656d41ecf881f100616f7b3656d3185ff9a1"
+    },
+    "email": null,
+    "root": "/home/sushant.h.vema/sandmining/sandmining-watch",
+    "host": "fati.ischool.berkeley.edu",
+    "username": "sushant.h.vema",
+    "executable": "/home/sushant.h.vema/.conda/envs/sandmining/bin/python",
+    "cpu_count": 24,
+    "cpu_count_logical": 48,
+    "cpu_freq": {
+        "current": 3.4906875,
+        "min": 3500.0,
+        "max": 3500.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.124,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        },
+        {
+            "current": 3.5,
+            "min": 3500.0,
+            "max": 3500.0
+        }
+    ],
+    "disk": {
+        "total": 104241.208984375,
+        "used": 96723.33826065063
+    },
+    "gpu": "Tesla V100S-PCIE-32GB",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "Tesla V100S-PCIE-32GB",
+            "memory_total": 34359738368
+        }
+    ],
+    "memory": {
+        "total": 754.0150260925293
+    }
+}
