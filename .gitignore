@@ -165,3 +165,4 @@ notebooks_local/
 train_eval/wandb
 nohup.out
 *.pth
+creds.json
