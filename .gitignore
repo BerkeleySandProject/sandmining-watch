@@ -166,3 +166,6 @@ train_eval/wandb
 nohup.out
 train/wandb
 gcloud_keys
+
+creds.json
+wandb

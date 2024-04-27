@@ -4,6 +4,7 @@ from typing import Optional, List
 from rastervision.core.data import ClassConfig
 
 class ModelChoice(Enum):
+    Test = "test"
     UnetSmall = "unet-small"
     UnetOrig = "unet-orig"
     Segformer = "segformer"
@@ -35,8 +36,13 @@ class NormalizationS2Choice(Enum):
     DivideBy10000 = "divideby10000"  # Used by SSL4EO
 
 class BackpropLossChoice(Enum):
-    BCE = "BCE"
-    DICE = "DICE"
+    BCE = "bce_loss"
+    DICE = "dice_loss"
+
+class ThreeClassVariants(Enum):
+    A = "a"
+    B = "b"
+    C = "c"
 
 @dataclass
 class SupervisedTrainingConfig:
@@ -52,11 +58,20 @@ class SupervisedTrainingConfig:
     datasets: DatasetChoice
     mine_class_loss_weight: float
 
+@dataclass
+class ThreeClassConfig:
+    three_class_training_method: ThreeClassVariants
+    low_confidence_weight: float
+
+@dataclass
+class ThreeClassSupervisedTrainingConfig(SupervisedTrainingConfig, ThreeClassConfig):
+    pass
+
 class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
     LinearProbing = "linear-probing" # Encoder weights are frozen
     FreezeEmbed = "freeze-embed" # Only applicable for ViT! Patch embed layer is frozen.
-    LoRA = "lora" # Low Rank Adaptation
+    LoRA = "lora" # Low Rank Adaptation Linear Probing
 
 @dataclass
 class SupervisedFinetuningConfig(SupervisedTrainingConfig):
@@ -67,6 +82,10 @@ class SupervisedFinetuningConfig(SupervisedTrainingConfig):
     smoothing_sigma: Optional[float] = 10.
 
 @dataclass
+class ThreeClassFineTuningConfig(SupervisedFinetuningConfig, ThreeClassConfig):
+    pass
+
+@dataclass
 class InferenceConfig(SupervisedTrainingConfig):
     crop_sz: Optional[int]
     encoder_weights_path: Optional[bool]
@@ -75,6 +94,10 @@ class InferenceConfig(SupervisedTrainingConfig):
     smoothing_sigma: Optional[float] = 10.
     wandb_id: Optional[str] = None
     mean_threshold: Optional[float] = None
+    
+@dataclass 
+class ThreeClassInferenceConfig(InferenceConfig, ThreeClassConfig):
+    pass
 
 
 ## Annotation stuff

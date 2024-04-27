@@ -1,7 +1,9 @@
 from enum import Enum
 
-from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig
+from experiment_configs.schemas import SupervisedTrainingConfig, SupervisedFinetuningConfig, ModelChoice, FinetuningStratagyChoice, InferenceConfig, ThreeClassConfig, ThreeClassSupervisedTrainingConfig, ThreeClassVariants
 from typing import Union
+
+from peft import LoraConfig, get_peft_model
 
 
 def print_trainable_parameters(model):
@@ -16,11 +18,17 @@ def print_trainable_parameters(model):
 
 
 def model_factory(
-        config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig] ,
+        config: Union[SupervisedTrainingConfig, SupervisedFinetuningConfig, ThreeClassConfig] ,
         n_channels,
+        config_lora=None
     ):
-    n_classes = 1
-    if config.num_upsampling_layers is None:
+    if isinstance(config, ThreeClassConfig) and \
+        (config.three_class_training_method == ThreeClassVariants.B or 
+        config.three_class_training_method == ThreeClassVariants.C):
+        n_classes = 3
+    else:
+        n_classes = 1
+    if isinstance(config, SupervisedFinetuningConfig) and config.num_upsampling_layers is None:
         config.num_upsampling_layers = 2
 
     if config.model_type == ModelChoice.UnetSmall:
@@ -55,6 +63,9 @@ def model_factory(
     elif config.model_type == ModelChoice.ResNet50UNet:
         from models.unet.unet_with_backbone import ResNetEncoderUNetDecoder
         model = ResNetEncoderUNetDecoder("resnet50", n_channels, n_classes)
+    elif config.model_type == ModelChoice.Test:
+        import torch
+        model = torch.nn.Conv2d(n_channels, n_classes, 1)
     else:
         raise ValueError("Error in model selection")
     
@@ -64,9 +75,7 @@ def model_factory(
         if config.encoder_weights_path:
             model.load_encoder_weights(config.encoder_weights_path)
 
-        if config.finetuning_strategy == FinetuningStratagyChoice.End2EndFinetuning or config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
-            pass
-        elif config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing:
+        if config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing or config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
             model.freeze_encoder_weights()
         elif config.finetuning_strategy == FinetuningStratagyChoice.FreezeEmbed:
             model.freeze_embed_weights()
@@ -89,5 +98,12 @@ def model_factory(
             # print(f'Parameter {name} has changed')
             count += 1
     print(f'Number of parameters loaded: {count}')
+    
+    if isinstance(config, SupervisedFinetuningConfig) and not isinstance(config, InferenceConfig) and config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
+        if config_lora is None:
+            raise ValueError("No lora config passed.")
+        else:
+            print ("Applying LoRA ...")
+            model = get_peft_model(model, config_lora)
     
     return model

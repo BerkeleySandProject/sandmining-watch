@@ -6,18 +6,51 @@ from rastervision.core.data import (
     SemanticSegmentationLabelSource
 )
 from rastervision.core.data.raster_transformer.nan_transformer import NanTransformer
-
 from rastervision.core.data.raster_source import RasterSource
+from rastervision.core.data import VectorSource, RasterTransformer
 from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset
 
 
-from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS, N_EDGE_PIXELS_DISCARD
+from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS, N_EDGE_PIXELS_DISCARD, ANNO_CONFIG
 from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice
 from utils.schemas import ObservationPointer
 from ml.norm_data import norm_s1_transformer, norm_s2_transformer, divide_by_10000_transformer
 from ml.augmentations import DEFAULT_AUGMENTATIONS
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING, Optional, List, Tuple
 from shapely.geometry import Polygon
+import geopandas as gpd
+from rasterio.features import rasterize
+from rastervision.pipeline import registry_ as registry
+from rastervision.pipeline.file_system.http_file_system import HttpFileSystem
+from google.cloud import storage
+from urllib.parse import urlparse
+
+
+class GoogleCloudFileSystem(HttpFileSystem):
+    storage_client = None
+    
+    def __init__(self) -> None:
+        super().__init__()
+        
+    @staticmethod
+    def matches_uri(uri: str, mode: str) -> bool:
+        parsed_uri = urlparse(uri)
+        return parsed_uri.netloc == "storage.googleapis.com"
+    
+    @staticmethod
+    def copy_from(src_uri: str, dst_path: str) -> None:
+        if GoogleCloudFileSystem.storage_client is None:
+            super().copy_from(src_uri, dst_path)
+            return
+        
+        parsed_uri = urlparse(src_uri)
+        bucket_name = parsed_uri.path.split("/")[1]
+        src_file_path = "/".join(parsed_uri.path.split("/")[2:])
+        bucket = GoogleCloudFileSystem.storage_client.get_bucket(bucket_name)
+        blob = bucket.get_blob(src_file_path)
+        blob.download_to_filename(dst_path)
+
+registry.file_systems.insert(0, GoogleCloudFileSystem)
 
 def observation_to_scene(config: SupervisedTrainingConfig, observation: ObservationPointer) -> Scene:
     if config.datasets == DatasetChoice.S1S2:
@@ -46,7 +79,7 @@ def observation_to_scene(config: SupervisedTrainingConfig, observation: Observat
             rivers_uri=observation.uri_to_rivers
         )
     else:
-        raise ValueError("Unexped value for config.datasets")
+        raise ValueError("Unexpected value for config.datasets")
 
 def create_scene_s1s2(config, s2_uri, s1_uri, label_uri, scene_id, rivers_uri) -> Scene:
     s1s2_source = create_s1s2_multirastersource(config, s2_uri, s1_uri)
@@ -126,12 +159,20 @@ def rastersource_with_labeluri_to_scene(img_raster_source: RasterSource, label_u
             ]
         )
 
-        label_raster_source = RasterizedSource(
-            vector_source,
-            background_class_id=CLASS_CONFIG.null_class_id,
-            # extent=img_raster_source.extent
-            bbox = img_raster_source.bbox
-        )
+        if ANNO_CONFIG.num_classes == 2:
+            label_raster_source = RasterizedSource(
+                vector_source,
+                background_class_id=CLASS_CONFIG.null_class_id,
+                # extent=img_raster_source.extent
+                bbox = img_raster_source.bbox
+            )
+        else:
+            label_raster_source = ConfidenceLabelSource(
+                vector_source,
+                background_class_id=CLASS_CONFIG.null_class_id,
+                # extent=img_raster_source.extent
+                bbox=img_raster_source.bbox
+            )
 
         label_source = SemanticSegmentationLabelSource(
             label_raster_source, class_config=CLASS_CONFIG
@@ -257,7 +298,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     for aoi in scene.aoi_polygons:
         aoi_area += aoi.area
 
-    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 2    
+    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 4
     # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
     ds = SemanticSegmentationRandomWindowGeoDataset(
         scene,
@@ -279,6 +320,74 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
         ds.sample_window = custom_sample_window.__get__(ds, SemanticSegmentationRandomWindowGeoDataset)
         
     return ds
+
+def geoms_to_conf_labels(df: gpd.GeoDataFrame, window: 'Box',
+                    background_class_id: int, all_touched: bool,
+                    extent: 'Box') -> np.ndarray:
+    """Rasterize geometries that intersect with the window."""
+    if len(df) == 0:
+        return np.full(window.size, background_class_id, dtype=np.float32)
+
+    window_geom = window.to_shapely()
+
+    # subset to shapes that intersect window
+    df_int = df[df.intersects(window_geom)]
+    # transform to window frame of reference
+    shapes = df_int.translate(xoff=-window.xmin, yoff=-window.ymin)
+    # confidence of each shape
+    confidence_map = {"Low": 1, "High": 2}
+    confidences = df_int["Confidence"].map(confidence_map)
+
+    if len(shapes) > 0:
+        rasters = []
+        #iterate over each geometry in df_int, and rasterize it
+        for i in range(len(df_int)):
+            # print(i,shapes.iloc[i], class_ids.iloc[i])
+            raster = rasterize(
+                        shapes = [(shapes.iloc[i], confidences.iloc[i])],
+                        out_shape = window.size,
+                        fill = background_class_id,
+                        all_touched=all_touched)
+            # print(raster)
+            rasters.append(raster)  
+        #Now merge the rasters such that the maximum value is taken for each pixel
+        raster = np.maximum.reduce(rasters)
+
+    else:
+        raster = np.full(window.size, background_class_id)
+    return raster
+
+class ConfidenceLabelSource(RasterizedSource):
+    def __init__(self,
+                 vector_source: 'VectorSource',
+                 background_class_id: int,
+                 bbox: Optional['Box'] = None,
+                 all_touched: bool = False,
+                 raster_transformers: List['RasterTransformer'] = []):
+        super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
+    
+    def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
+        """Return the chip located in the window.
+
+        Polygons falling within the window are rasterized using the class_id, and
+        the background is filled with background_class_id. Also, any pixels in the
+        window outside the extent are zero, which is the don't-care class for
+        segmentation.
+
+        Args:
+            window: Box
+
+        Returns:
+            [height, width, channels] numpy array
+        """
+        # log.debug(f'Rasterizing window: {window}')
+        chip = geoms_to_conf_labels(
+            self.df,
+            window,
+            background_class_id=self.background_class_id,
+            extent=self.extent,
+            all_touched=self.all_touched)
+        return np.expand_dims(chip, 2)
 
 
 class SemanticSegmentationSlidingWindowGeoDatasetCustom(SemanticSegmentationSlidingWindowGeoDataset):
