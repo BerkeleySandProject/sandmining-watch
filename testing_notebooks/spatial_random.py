@@ -26,9 +26,9 @@ random.seed(seed)
 
 
 
-from experiment_configs.configs import lora_config, satmae_large_config_lora_methodB
+from experiment_configs.configs import lora_config, satmae_large_config_lora_methodA
 
-config = satmae_large_config_lora_methodB
+config = satmae_large_config_lora_methodA
 lora_config = lora_config
 
 
@@ -56,15 +56,14 @@ dataset_json = json.load(open(json_abs_path, 'r'))
 all_scenes = [observation_to_scene(config, observation) for i, observation in enumerate(observation_factory(dataset_json))]
 cluster_ids = [observation.cluster_id for i, observation in enumerate(observation_factory(dataset_json))]
 
+val_cluster_id = 9
 
-
-val_cluster_id = np.unique(cluster_ids).max() + 1
-for cid in np.unique(cluster_ids):
-    scene_idx = [i for i in range(len(cluster_ids)) if cluster_ids[i] == cid]
-    val_idx = random.sample(scene_idx, 1)[0]
-    cluster_ids[val_idx] = val_cluster_id
-    
-    
+# Uncomment if want new val set
+# val_cluster_id = np.unique(cluster_ids).max() + 1
+# for cid in np.unique(cluster_ids):
+#     scene_idx = [i for i in range(len(cluster_ids)) if cluster_ids[i] == cid]
+#     val_idx = random.sample(scene_idx, 1)[0]
+#     cluster_ids[val_idx] = val_cluster_id
     
 training_datasets = [scene_to_training_ds(config, scene) for scene, cid in zip(all_scenes, cluster_ids) if cid != val_cluster_id]
 validation_datasets = [scene_to_inference_ds(config, scene, full_image=False, stride=int(config.tile_size/2)) for scene, cid in zip(all_scenes, cluster_ids) if cid == val_cluster_id]
@@ -97,9 +96,9 @@ learner = learner_factory(
     optimizer=optimizer,
     train_ds=train_dataset_merged,  # for development and debugging, use training_datasets[0] or similar to speed up
     valid_ds=val_dataset_merged,  # for development and debugging, use training_datasets[1] or similar to speed up
-    output_dir=expanduser("~/sandmining-watch/out/MethodB")
+    output_dir=expanduser("~/sandmining-watch/out/MethodA-Seed0")
 )
 print_trainable_parameters(learner.model)
 
-learner.initialize_wandb_run(run_name="Multi (Method B)")
+learner.initialize_wandb_run(run_name="Method A - Spatially Random Validation - Seed 0")
 learner.train(epochs=30)
