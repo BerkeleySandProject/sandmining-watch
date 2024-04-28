@@ -41,12 +41,6 @@ testing_configA = ThreeClassSupervisedTrainingConfig(
 
 testing_configB = ThreeClassSupervisedTrainingConfig(
     three_class_training_method=ThreeClassVariants.B,
-    low_confidence_weight=0.,
-    **vars(testing_config)
-)
-
-testing_configC = ThreeClassSupervisedTrainingConfig(
-    three_class_training_method=ThreeClassVariants.C,
     low_confidence_weight=1.,
     **vars(testing_config)
 )
@@ -103,19 +97,8 @@ ssl4eo_resnet18_threeclass_configA = ThreeClassFineTuningConfig(
 
 ssl4eo_resnet18_threeclass_configB = ThreeClassFineTuningConfig(
     three_class_training_method=ThreeClassVariants.B,
-    low_confidence_weight=0.,
-    model_type=ModelChoice.ResNet18UNet,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=160,
-    s2_channels=None,
-    s2_normalization=NormalizationS2Choice.DivideBy10000,
-    batch_size=128,
-    learning_rate=5e-4,
-    datasets=DatasetChoice.S2_L1C,
-    mine_class_loss_weight=6.,
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth",
-    loss_fn=BackpropLossChoice.BCE
+    low_confidence_weight=1.,
+    **vars(ssl4eo_resnet18_config)
 )
 
 ssl4eo_resnet50_config = SupervisedFinetuningConfig(

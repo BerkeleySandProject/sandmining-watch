@@ -42,7 +42,6 @@ class BackpropLossChoice(Enum):
 class ThreeClassVariants(Enum):
     A = "a"
     B = "b"
-    C = "c"
 
 @dataclass
 class SupervisedTrainingConfig:

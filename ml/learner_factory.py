@@ -9,7 +9,7 @@ from project_config import ANNO_CONFIG
 
 from torch import nn
 
-from .learner_new import BinarySegmentationLearner, MultiSegmentationLearner
+from .learner import BinarySegmentationLearner, MultiSegmentationLearner
 
 def learner_factory(config: Union[SupervisedTrainingConfig, ThreeClassSupervisedTrainingConfig],
                  model: nn.Module,

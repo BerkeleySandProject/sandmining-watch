@@ -23,8 +23,7 @@ def model_factory(
         config_lora=None
     ):
     if isinstance(config, ThreeClassConfig) and \
-        (config.three_class_training_method == ThreeClassVariants.B or 
-        config.three_class_training_method == ThreeClassVariants.C):
+        (config.three_class_training_method == ThreeClassVariants.B):
         n_classes = 3
     else:
         n_classes = 1
