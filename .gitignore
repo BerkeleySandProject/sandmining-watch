@@ -169,3 +169,7 @@ gcloud_keys
 
 creds.json
 wandb
+
+*.pth
+
+sushant-notes/
