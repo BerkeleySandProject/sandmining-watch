@@ -1,3 +1,4 @@
+from models.satmae.pretrained_satmae_config import satmea_pretrained_encoder_bands_idx
 from .schemas import *
 
 ##There's no reason to set batch sizes to a powers of 2. Empirical evidence:
@@ -7,6 +8,7 @@ from .schemas import *
 # Fully supervised
 
 from project_config import S2Band
+
 fully_supervised_band_selection = [
     S2Band.B2,
     S2Band.B3,
@@ -14,7 +16,7 @@ fully_supervised_band_selection = [
     S2Band.B8A,
     S2Band.B11,
     S2Band.B12,
-] 
+]
 fully_supervised_band_selection_idx: list[int] = [
     e.value for e in fully_supervised_band_selection
 ]
@@ -54,8 +56,8 @@ unet_config = SupervisedTrainingConfig(
     batch_size=128,
     learning_rate=5e-4,
     datasets=DatasetChoice.S1S2,
-    mine_class_loss_weight=6.,
-    loss_fn=BackpropLossChoice.BCE
+    mine_class_loss_weight=6.0,
+    loss_fn=BackpropLossChoice.BCE,
 )
 
 segformer_config = SupervisedTrainingConfig(
@@ -67,11 +69,11 @@ segformer_config = SupervisedTrainingConfig(
     batch_size=128,
     learning_rate=5e-4,
     datasets=DatasetChoice.S1S2,
-    mine_class_loss_weight=6.,
-    loss_fn=BackpropLossChoice.BCE
+    mine_class_loss_weight=6.0,
+    loss_fn=BackpropLossChoice.BCE,
 )
 
-########################## 
+##########################
 # SSL4EO
 
 ssl4eo_resnet18_config = SupervisedFinetuningConfig(
@@ -83,10 +85,10 @@ ssl4eo_resnet18_config = SupervisedFinetuningConfig(
     batch_size=128,
     learning_rate=5e-4,
     datasets=DatasetChoice.S2_L1C,
-    mine_class_loss_weight=6.,
+    mine_class_loss_weight=6.0,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
     encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn18_moco_0099_ckpt.pth",
-    loss_fn=BackpropLossChoice.BCE
+    loss_fn=BackpropLossChoice.BCE,
 )
 
 ssl4eo_resnet18_threeclass_configA = ThreeClassFineTuningConfig(
@@ -113,13 +115,12 @@ ssl4eo_resnet50_config = SupervisedFinetuningConfig(
     mine_class_loss_weight=6,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
     encoder_weights_path="/data/sand_mining/checkpoints/ssl4eo/B13_rn50_moco_0099.pth",
-    loss_fn=BackpropLossChoice.BCE
+    loss_fn=BackpropLossChoice.BCE,
 )
 
 ##########################
 # SatMAE
 
-from models.satmae.pretrained_satmae_config import satmea_pretrained_encoder_bands_idx
 
 satmae_base_config = SupervisedFinetuningConfig(
     model_type=ModelChoice.SatmaeBaseDoubleUpsampling,
@@ -130,10 +131,10 @@ satmae_base_config = SupervisedFinetuningConfig(
     batch_size=64,
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
-    mine_class_loss_weight=6.,
+    mine_class_loss_weight=6.0,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
     encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-base-e199.pth",
-    loss_fn=BackpropLossChoice.BCE
+    loss_fn=BackpropLossChoice.BCE,
 )
 
 satmae_large_config = SupervisedFinetuningConfig(
@@ -145,7 +146,7 @@ satmae_large_config = SupervisedFinetuningConfig(
     batch_size=100,
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
-    mine_class_loss_weight=6.,
+    mine_class_loss_weight=6.0,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
     encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
     loss_fn=BackpropLossChoice.BCE,
@@ -269,4 +270,3 @@ lora_config = LoraConfig(
     # bias="none",
     bias="lora_only",
     modules_to_save=["decoder"], #modules_to_save: List of modules apart from LoRA layers to be set as trainable and saved in the final checkpoint. These typically include model’s custom head that is randomly initialized for the fine-tuning task.
-)

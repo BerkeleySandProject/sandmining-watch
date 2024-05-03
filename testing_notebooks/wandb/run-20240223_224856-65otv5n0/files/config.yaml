@@ -1,0 +1,145 @@
+wandb_version: 1
+
+three_class_training_method:
+  desc: null
+  value: b
+low_confidence_weight:
+  desc: null
+  value: 1.0
+model_type:
+  desc: null
+  value: satmae-large-double-upsampling
+optimizer:
+  desc: null
+  value: adamw
+tile_size:
+  desc: null
+  value: 160
+s2_channels:
+  desc: null
+  value:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 10
+  - 11
+s2_normalization:
+  desc: null
+  value: channelwise
+loss_fn:
+  desc: null
+  value: BCE
+batch_size:
+  desc: null
+  value: 100
+learning_rate:
+  desc: null
+  value: 0.001
+datasets:
+  desc: null
+  value: s2
+mine_class_loss_weight:
+  desc: null
+  value: 6.0
+finetuning_strategy:
+  desc: null
+  value: linear-probing
+encoder_weights_path:
+  desc: null
+  value: /home/ando/sandmining-watch/out/OUTPUT_DIR/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_SmoothVal-E9.pth
+num_upsampling_layers:
+  desc: null
+  value: 2
+apply_smoothing:
+  desc: null
+  value: true
+smoothing_sigma:
+  desc: null
+  value: 10.0
+Size training dataset:
+  desc: null
+  value: 1036
+Size validation dataset:
+  desc: null
+  value: 1225
+Number weights total:
+  desc: null
+  value: 304274181
+Number weights trainable:
+  desc: null
+  value: 992259
+local_out_dir:
+  desc: null
+  value: /home/sushant.h.vema/sandmining-watch/out/OUTPUT_DIR
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.17
+    cli_version: 0.15.8
+    framework: huggingface
+    huggingface_version: 4.32.1
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1708757336.832985
+    t:
+      1:
+      - 1
+      - 5
+      - 11
+      - 41
+      - 49
+      - 53
+      - 55
+      - 63
+      - 71
+      - 80
+      - 98
+      2:
+      - 1
+      - 5
+      - 11
+      - 41
+      - 49
+      - 53
+      - 55
+      - 63
+      - 71
+      - 80
+      - 98
+      3:
+      - 1
+      - 2
+      - 7
+      - 16
+      - 23
+      4: 3.9.17
+      5: 0.15.8
+      6: 4.32.1
+      8:
+      - 5
+    m:
+    - 1: val_bce_loss
+      6:
+      - 3
+      7:
+      - 1
+    - 1: val_dice_loss
+      6:
+      - 3
+      7:
+      - 1
+    - 1: sandmine_f1
+      6:
+      - 3
+      7:
+      - 2
+    - 1: sandmine_average_precision
+      6:
+      - 3
+      7:
+      - 2

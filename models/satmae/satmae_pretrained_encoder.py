@@ -6,11 +6,13 @@ from .models_vit_group_channels import vit_base_patch16, vit_large_patch16
 from .util.pos_embed import interpolate_pos_embed
 from .pretrained_satmae_config import CHANNEL_GROUPS, PATCH_SIZE
 
+
 class SatMaePretrained(nn.Module):
     """
     A SatMaePretrained holds the pretrained SatMAE spectral encoder in the 'base' size.
     We inherited from this class to construct SatMAE encoder + custom decoder models.
     """
+
     def __init__(self, vit_size, image_size):
         super().__init__()
         if vit_size == "base":
@@ -18,14 +20,19 @@ class SatMaePretrained(nn.Module):
         elif vit_size == "large":
             encoder_factory_fcn = vit_large_patch16
         self.encoder = encoder_factory_fcn(
-            patch_size=PATCH_SIZE, img_size=image_size,
+            patch_size=PATCH_SIZE,
+            img_size=image_size,
             channel_groups=CHANNEL_GROUPS,
-            num_classes=2, drop_path_rate=0.1, global_pool=False,
+            num_classes=2,
+            drop_path_rate=0.1,
+            global_pool=False,
             use_encoder_only=True,
         )
         self.n_channel_groups = len(CHANNEL_GROUPS)
         self.encoder_real_depth = self.encoder.embed_dim * self.n_channel_groups
-        self.n_patches_along_axis = image_size // PATCH_SIZE # In SatMAE notation: H/P or W/P (because H=W, input is quadratic)
+        self.n_patches_along_axis = (
+            image_size // PATCH_SIZE
+        )  # In SatMAE notation: H/P or W/P (because H=W, input is quadratic)
 
     def load_encoder_weights(self, path_to_weights):
         if not os.path.isfile(path_to_weights):

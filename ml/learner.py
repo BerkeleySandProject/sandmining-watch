@@ -218,7 +218,7 @@ class Learner(ABC):
         return metric_names
     
     def train_step(self, batch, batch_ind):
-        x, y = batch
+        x, y, w = batch
         out = self.post_forward(self.model(x))
         # In the following, we hardcoded our metric names for our loss functions
         return self.calculate_losses(out, y, "train_")
@@ -229,7 +229,7 @@ class Learner(ABC):
         }
     
     def validate_step(self, batch, batch_ind):
-        x, y = batch
+        x, y, w = batch
         out = self.post_forward(self.model(x))
         out_probabilities = torch.sigmoid(out)
 

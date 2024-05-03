@@ -29,6 +29,7 @@ training_locations = [
     "Sone_Patna_84-0_24-62",
     "Godavari_EastGodavari_81-05_17-62",
     "Sone_Arwal_83-15_24-4",
+    "Godavari_EastGodavari_81-84_16-66"
 ]
     
 validation_locations = [

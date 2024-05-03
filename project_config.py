@@ -34,13 +34,24 @@ class S2Band(Enum):
     B12 = 11
 
 RGB_BANDS = [S2Band.B4, S2Band.B3, S2Band.B2]
+#IR_CHANNELS = [11, 10, 9]
+# DISPLAY_GROUPS = {
+#     "RGB": RGB_BANDS,
+#     "IR": IR_CHANNELS,
+# }
+
+# To use hard labels set to True
+# If false, uses soft labels
+HARD_LABELS = True
 
 
 #Storage stuff
 
 # Google Cloud Platform
 GCP_PROJECT_NAME = "gee-sand"
-BUCKET_NAME = "sand_mining_median"
+# BUCKET_NAME = "sand_mining_median"
+
+BUCKET_NAME = "sand_mining_test"
 
 # Weight and Biases
 WANDB_PROJECT_NAME = "sandmine_spatially_random"

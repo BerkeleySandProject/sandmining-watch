@@ -9,6 +9,8 @@ from rastervision.pytorch_learner.utils import color_to_triple
 from rastervision.pytorch_learner import SemanticSegmentationVisualizer
 
 from project_config import CLASS_CONFIG, RGB_BANDS
+from skimage import exposure
+from matplotlib.colors import ListedColormap
 from typing import List
 from rastervision.pytorch_learner.dataset import GeoDataset
 
@@ -18,6 +20,96 @@ from shapely.geometry import Polygon
 import numpy as np
 from skimage import exposure
 
+class Visualizer():
+    """
+    This class solves the problem of knowing which channels in an images correspons to RGB.
+
+    Context:
+    - Our earth engine exports (*_s2.tif) contains a subset of channels from Sentinel 2.
+    - In our rastervision pipeline, we again (can) specify a subset of channels to use.
+      The remaining channels are ignored. We refer to this selection of channels as "s2_channels".
+      The reference is the channels in our earth engine export.
+    
+    """
+    def __init__(self, s2_channels):
+        self.rgb_channels = self.infer_rbg_channels(s2_channels)
+
+    @classmethod
+    def infer_rbg_channels(cls, s2_channels):
+        rgb_band_idx = [e.value for e in RGB_BANDS]
+        if s2_channels is None:
+            return rgb_band_idx
+        else:
+            return [s2_channels.index(idx) for idx in rgb_band_idx]
+    
+
+    def rgb_from_bandstack(self, image):
+        # apply automatic contrast selection
+        p2, p98 = np.percentile(image[:,:,self.rgb_channels], (2, 98))
+        image_rescale = exposure.rescale_intensity(image[:,:,self.rgb_channels], in_range=(p2, p98))
+        return np.clip(image_rescale, 0, 1.)
+
+
+    def show_windows(self, img, windows, title=''):
+        rgb_img = self.rgb_from_bandstack(img)
+        fig, ax = plt.subplots(1, 1, squeeze=True, figsize=(8, 8))
+        ax.matshow(rgb_img)
+        
+        ax.axis('off')
+        # draw windows on top of the image
+        for w in windows:
+            p = patches.Polygon(w.to_points(), color='r', linewidth=1.5, fill=False)
+            ax.add_patch(p)
+
+        ax.autoscale()
+        ax.set_title(title)
+        plt.show()
+
+    def show_rgb_with_labels(self, img, label_img):
+        rgb_img = self.rgb_from_bandstack(img)
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+        fig.tight_layout(w_pad=-2)
+        #enhance the contrast automatically
+        rgb_img = exposure.equalize_adapthist(rgb_img, clip_limit=0.03)
+        ax1.matshow(rgb_img)
+        ax1.axis('off')
+        cmap = ListedColormap(CLASS_CONFIG.color_triples)
+        # cmap = get_default_cmap()
+        ax2.imshow(label_img, cmap=cmap)
+        ax2.axis('off')
+        plt.show()
+
+    def show_rgb_overlay_labels(self, img, label_img):
+        rgb_img = self.rgb_from_bandstack(img)
+        fig, ax1 = plt.subplots(1, 1, figsize=(10, 10))
+        fig.tight_layout(w_pad=-2)
+        #enhance the contrast automatically
+        # rgb_img = exposure.equalize_adapthist(rgb_img, clip_limit=0.03)
+        rgb_img = exposure.adjust_gamma(rgb_img)
+        ax1.imshow(rgb_img)
+        ax1.axis('off')
+        cmap = ListedColormap(CLASS_CONFIG.color_triples)
+        #convert the label image such that any pixels with value 0 are transparent
+        label_img = np.ma.masked_where(label_img == 0, label_img)
+        ax1.imshow(label_img, cmap=cmap, zorder=1)
+        legend_items = [
+        patches.Patch(facecolor=cmap(i), edgecolor='black', label=cname)
+        for i, cname in enumerate(CLASS_CONFIG.names)]
+        ax1.legend(
+            handles=legend_items,
+            ncol=len(CLASS_CONFIG),
+            loc='upper center',
+            fontsize=14,
+            bbox_to_anchor=(0.5, 0))
+        plt.show()
+
+    
+def to_rgb(img):
+    if img.shape[2] == 3:
+        return img
+    else:
+        img_rgb = img[:,:,RGB_BANDS]
+        return img_rgb
 
 def show_image(img, title=''):
     img = to_rgb(img)
@@ -42,14 +134,14 @@ def get_cmap_from_class_colors(class_colors):
     cmap = mcolors.ListedColormap(colors)
     return cmap
 
-def get_default_cmap(cvals=[0,  1], colors=CLASS_CONFIG.colors):
+def get_default_cmap(cvals=[0,  1, 2], colors=CLASS_CONFIG.colors):
     norm=plt.Normalize(min(cvals),max(cvals))
     tuples = list(zip(map(norm,cvals), colors))
-    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", tuples)
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list("plasma", tuples)
     return cmap
     
 def show_rgb_with_labels(img, label_img):
-    img = to_rgb(img)
+    # img = to_rgb(img)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     fig.tight_layout(w_pad=-2)
     ax1.matshow(img)
@@ -89,7 +181,7 @@ def show_predictions(predictions, show=False):
 
     
 def show_labels(img, class_config=CLASS_CONFIG):
-    fig, ax = plt.subplots(figsize=(5, 5))
+    fig, ax = plt.subplots(figsize=(10, 10))
     cmap = mcolors.ListedColormap(class_config.color_triples)
     ax.matshow(img, cmap=cmap)
     legend_items = [
@@ -154,23 +246,25 @@ def show_windows(img, windows, title='', aoi_polygons=[]):
     plt.show()
 
 
-from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset 
-def visualize_dataset(ds: GeoDataset):
+# from .rastervision_pipeline import ThreeClassSemanticSegmentationRandomWindowGeoDataset, ThreeClassSemanticSegmentationSlidingWindowGeoDataset
+from .rastervision_pipeline import SemanticSegmentationSlidingWindowGeoDatasetCustom
+from rastervision.pytorch_learner import SemanticSegmentationRandomWindowGeoDataset
+def visualize_dataset(ds_list: List[GeoDataset]):
+    for ds in ds_list:
+        rgb_band_idx = [e.value for e in RGB_BANDS]
+        img_rgb = raster_source_to_rgb(ds.scene.raster_source)
 
-    rgb_band_idx = [e.value for e in RGB_BANDS]
-    img_rgb = raster_source_to_rgb(ds.scene.raster_source)
-
-    if isinstance(ds, SemanticSegmentationRandomWindowGeoDataset):
-        title = f"{ds.scene.id}, N={ds.max_windows}"
-        windows = [ds.sample_window() for _ in range(ds.max_windows)]
-    
-    elif isinstance(ds, SemanticSegmentationSlidingWindowGeoDataset):
-        title = f"{ds.scene.id}, N={len(ds.windows)}"
-        windows = ds.windows
-    else:
-        raise ValueError("Unexpected type of dataset")
-    
-    show_windows(img_rgb, windows, title=title, aoi_polygons=ds.scene.aoi_polygons)
+        if isinstance(ds, SemanticSegmentationRandomWindowGeoDataset):
+            title = f"{ds.scene.id}, N={ds.max_windows}"
+            windows = [ds.sample_window() for _ in range(ds.max_windows)]
+        
+        elif isinstance(ds, SemanticSegmentationSlidingWindowGeoDatasetCustom):
+            title = f"{ds.scene.id}, N={len(ds.windows)}"
+            windows = ds.windows
+        else:
+            raise ValueError("Unexpected type of dataset")
+        
+        show_windows(img_rgb, windows, title=title, aoi_polygons=ds.scene.aoi_polygons)
 
 
 def raster_source_to_rgb(raster_source):
