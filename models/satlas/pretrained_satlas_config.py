@@ -1,4 +1,5 @@
 from project_config import S2Band
+
 CHANNEL_GROUPS = [[0, 1, 2, 6], [3, 4, 5, 7], [8, 9]]
 # Group 0: B1, B2, B3, B7
 # Group 1: B4, B5, B6, B8
