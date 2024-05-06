@@ -173,3 +173,4 @@ wandb
 *.pth
 
 sushant-notes/
+*.virtual_documents

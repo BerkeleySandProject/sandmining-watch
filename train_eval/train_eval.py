@@ -5,12 +5,11 @@ CLI Tool for training and evaluating models.
 from argparse import ArgumentParser
 import os
 import sys
-from os.path import expanduser
 from dotenv import load_dotenv
 from google.cloud import storage
-from project_config import GCP_PROJECT_NAME, DATASET_JSON_PATH
 from torch.utils.data import ConcatDataset
 import json
+import ipdb
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -22,14 +21,16 @@ __version__ = "0.1.0"
 load_dotenv()
 
 
-gcp_client = storage.Client(project=GCP_PROJECT_NAME)
+def main(_):
+    from project_config import GCP_PROJECT_NAME, DATASET_JSON_PATH
 
-# Configuration
-# from experiment_configs.test_config import *
-# config = test.config
+    gcp_client = storage.Client(project=GCP_PROJECT_NAME)
+    from experiment_configs.configs import satlas_swin_base_si_ms_linear_decoder_config
 
+    # Configuration
+    config = satlas_swin_base_si_ms_linear_decoder_config
 
-def main():
+    ipdb.set_trace()
     # Create Rastervision Datasets
     from utils.rastervision_pipeline import (
         observation_to_scene,
@@ -75,7 +76,7 @@ def main():
     # Train
     from models.model_factory import model_factory
     from ml.optimizer_factory import optimizer_factory
-    from ml.learner import BinarySegmentationLearner, MultiClassSegmentationLearner
+    from ml.learner import BinarySegmentationLearner, MultiSegmentationLearner
 
     _, _, n_channels = training_datasets[0].scene.raster_source.shape
     model = model_factory(
@@ -85,7 +86,7 @@ def main():
 
     optimizer = optimizer_factory(config, model)
 
-    learner = MultiClassSegmentationLearner(
+    learner = MultiSegmentationLearner(
         config=config,
         model=model,
         optimizer=optimizer,
@@ -105,7 +106,7 @@ def main():
 
     # Evaluate
 
-    from ml.learner import BinarySegmentationPredictor
+    from ml.learner import BinarySegmentationPredictor, MultiSegmentationLearner
     from utils.rastervision_pipeline import scene_to_inference_ds
 
     # evaluation_datasets =  [
@@ -122,8 +123,7 @@ def main():
             evaluation_datasets.append(
                 scene_to_inference_ds(
                     config,
-                    observation_to_scene(
-                        config, observation, weights_class=False),
+                    observation_to_scene(config, observation, weights_class=False),
                     full_image=True,
                 )
             )
@@ -215,25 +215,25 @@ if __name__ == "__main__":
     )
 
     # Model Name
-    parser.add_argument(
-        "-m",
-        "--model_name",
-        default="test",
-        const="all",
-        nargs="?",
-        choices=[
-            "test",
-            "unet",
-            "segformer",
-            "ssl4eo_resnet18",
-            "ssl4eo_resnet50",
-            "satmae_base",
-            "satmae_large",
-            "satlas_base",
-        ],
-        help="Pick the name of the model you want to train.",
-    )
-
+    # parser.add_argument(
+    #     "-m",
+    #     "--model_name",
+    #     default="test",
+    #     const="all",
+    #     nargs="?",
+    #     choices=[
+    #         "test",
+    #         "unet",
+    #         "segformer",
+    #         "ssl4eo_resnet18",
+    #         "ssl4eo_resnet50",
+    #         "satmae_base",
+    #         "satmae_large",
+    #         "satlas_base",
+    #     ],
+    #     help="Pick the name of the model you want to train.",
+    # )
+    #
     # Select Mode
     parser.add_argument(
         "--mode",
@@ -254,6 +254,5 @@ if __name__ == "__main__":
         action="version",
         version="%(prog)s (version {version})".format(version=__version__),
     )
-
-    args = parser.parse_args()
-    main(args)
+    _ = parser.parse_args()
+    main(_)

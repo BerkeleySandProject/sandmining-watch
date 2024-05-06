@@ -19,16 +19,30 @@ from rastervision.core.data import (
 from rastervision.core.data.raster_transformer.nan_transformer import NanTransformer
 from rastervision.core.data.raster_source import RasterSource
 from rastervision.core.data import VectorSource, RasterTransformer
-from rastervision.pytorch_learner import SemanticSegmentationSlidingWindowGeoDataset, SemanticSegmentationRandomWindowGeoDataset
+from rastervision.pytorch_learner import (
+    SemanticSegmentationSlidingWindowGeoDataset,
+    SemanticSegmentationRandomWindowGeoDataset,
+)
 
 
-from project_config import CLASS_NAME, CLASS_CONFIG, USE_RIVER_AOIS, N_EDGE_PIXELS_DISCARD, ANNO_CONFIG
-from experiment_configs.schemas import SupervisedTrainingConfig, DatasetChoice, NormalizationS2Choice
+from project_config import (
+    CLASS_NAME,
+    CLASS_CONFIG,
+    USE_RIVER_AOIS,
+    N_EDGE_PIXELS_DISCARD,
+    ANNO_CONFIG,
+)
+from experiment_configs.schemas import (
+    SupervisedTrainingConfig,
+    DatasetChoice,
+    NormalizationS2Choice,
+)
 from utils.schemas import ObservationPointer
 from ml.norm_data import (
     norm_s1_transformer,
     norm_s2_transformer,
     divide_by_10000_transformer,
+    divide_by_32_satlas_transformer,
 )
 from ml.augmentations import DEFAULT_AUGMENTATIONS
 from typing import TYPE_CHECKING, Optional, List, Tuple
@@ -43,27 +57,28 @@ from urllib.parse import urlparse
 
 class GoogleCloudFileSystem(HttpFileSystem):
     storage_client = None
-    
+
     def __init__(self) -> None:
         super().__init__()
-        
+
     @staticmethod
     def matches_uri(uri: str, mode: str) -> bool:
         parsed_uri = urlparse(uri)
         return parsed_uri.netloc == "storage.googleapis.com"
-    
+
     @staticmethod
     def copy_from(src_uri: str, dst_path: str) -> None:
         if GoogleCloudFileSystem.storage_client is None:
             super().copy_from(src_uri, dst_path)
             return
-        
+
         parsed_uri = urlparse(src_uri)
         bucket_name = parsed_uri.path.split("/")[1]
         src_file_path = "/".join(parsed_uri.path.split("/")[2:])
         bucket = GoogleCloudFileSystem.storage_client.get_bucket(bucket_name)
         blob = bucket.get_blob(src_file_path)
         blob.download_to_filename(dst_path)
+
 
 registry.file_systems.insert(0, GoogleCloudFileSystem)
 
@@ -81,7 +96,7 @@ def observation_to_scene(
             rivers_uri=observation.uri_to_rivers,
             low_conf_weight=config.uncertain_class_weight,
         )
-    elif config.datasets.images == DatasetChoice.S2:
+    elif config.datasets == DatasetChoice.S2:
         return create_scene_s2(
             config,
             s2_uri=observation.uri_to_s2,
@@ -90,7 +105,7 @@ def observation_to_scene(
             rivers_uri=observation.uri_to_rivers,
             low_conf_weight=config.uncertain_class_weight,
         )
-    elif config.datasets.images == DatasetChoice.S2_L1C:
+    elif config.datasets == DatasetChoice.S2_L1C:
         return create_scene_s2(
             config,
             s2_uri=observation.uri_to_s2_l1c,
@@ -128,12 +143,14 @@ def create_s2_image_source(config, img_uri):
         normalization_transformer = norm_s2_transformer
     elif config.s2_normalization == NormalizationS2Choice.DivideBy10000:
         normalization_transformer = divide_by_10000_transformer
+    elif config.s2_normalization == NormalizationS2Choice.DivideBy255:
+        normalization_transformer = divide_by_32_satlas_transformer
     else:
         raise ValueError("Unsupported value for config.s2_normalization")
 
     return RasterioSource(
         img_uri,
-        channel_order=config.s2_channels,
+        channel_order=[band.value for band in config.s2_channels],
         allow_streaming=False,
         raster_transformers=[
             NanTransformer(),
@@ -191,14 +208,14 @@ def rastersource_with_labeluri_to_scene(
                 vector_source,
                 background_class_id=CLASS_CONFIG.null_class_id,
                 # extent=img_raster_source.extent
-                bbox = img_raster_source.bbox
+                bbox=img_raster_source.bbox,
             )
         else:
             label_raster_source = ConfidenceLabelSource(
                 vector_source,
                 background_class_id=CLASS_CONFIG.null_class_id,
                 # extent=img_raster_source.extent
-                bbox=img_raster_source.bbox
+                bbox=img_raster_source.bbox,
             )
 
         label_source = SemanticSegmentationLabelSource(
@@ -274,13 +291,15 @@ def scene_to_validation_ds(config, scene: Scene):
     return ds
 
 
-def scene_to_inference_ds(config, scene: Scene, full_image: bool, stride=None, aoi_centroids = True):
+def scene_to_inference_ds(
+    config, scene: Scene, full_image: bool, stride=None, aoi_centroids=True
+):
     # In inference mode, we have a sliding window configuration with overlapping windows.
     # If full_image is True, sliding windows span the entire scene. Otherwise, sliding windows
     # are filtered by the scene's AOI (if existent)
     if stride is None:
         stride = config.tile_size - N_EDGE_PIXELS_DISCARD * 2
-        
+
     ds = SemanticSegmentationSlidingWindowGeoDatasetCustom(
         scene=scene,
         # If we want to run inference on the full image, we ignore the AOI.
@@ -341,7 +360,7 @@ def scene_to_training_ds(
     for aoi in scene.aoi_polygons:
         aoi_area += aoi.area
 
-    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 4
+    n_windows = int(np.ceil(aoi_area / config.tile_size**2)) * 4
     # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
     n_windows = 10
     ds = SemanticSegmentationRandomWindowGeoDataset(
@@ -365,9 +384,14 @@ def scene_to_training_ds(
     )
     return ds
 
-def geoms_to_conf_labels(df: gpd.GeoDataFrame, window: 'Box',
-                    background_class_id: int, all_touched: bool,
-                    extent: 'Box') -> np.ndarray:
+
+def geoms_to_conf_labels(
+    df: gpd.GeoDataFrame,
+    window: "Box",
+    background_class_id: int,
+    all_touched: bool,
+    extent: "Box",
+) -> np.ndarray:
     """Rasterize geometries that intersect with the window."""
     if len(df) == 0:
         return np.full(window.size, background_class_id, dtype=np.float32)
@@ -384,32 +408,38 @@ def geoms_to_conf_labels(df: gpd.GeoDataFrame, window: 'Box',
 
     if len(shapes) > 0:
         rasters = []
-        #iterate over each geometry in df_int, and rasterize it
+        # iterate over each geometry in df_int, and rasterize it
         for i in range(len(df_int)):
             # print(i,shapes.iloc[i], class_ids.iloc[i])
             raster = rasterize(
-                        shapes = [(shapes.iloc[i], confidences.iloc[i])],
-                        out_shape = window.size,
-                        fill = background_class_id,
-                        all_touched=all_touched)
+                shapes=[(shapes.iloc[i], confidences.iloc[i])],
+                out_shape=window.size,
+                fill=background_class_id,
+                all_touched=all_touched,
+            )
             # print(raster)
-            rasters.append(raster)  
-        #Now merge the rasters such that the maximum value is taken for each pixel
+            rasters.append(raster)
+        # Now merge the rasters such that the maximum value is taken for each pixel
         raster = np.maximum.reduce(rasters)
 
     else:
         raster = np.full(window.size, background_class_id)
     return raster
 
+
 class ConfidenceLabelSource(RasterizedSource):
-    def __init__(self,
-                 vector_source: 'VectorSource',
-                 background_class_id: int,
-                 bbox: Optional['Box'] = None,
-                 all_touched: bool = False,
-                 raster_transformers: List['RasterTransformer'] = []):
-        super().__init__(vector_source, background_class_id, bbox, all_touched, raster_transformers)
-    
+    def __init__(
+        self,
+        vector_source: "VectorSource",
+        background_class_id: int,
+        bbox: Optional["Box"] = None,
+        all_touched: bool = False,
+        raster_transformers: List["RasterTransformer"] = [],
+    ):
+        super().__init__(
+            vector_source, background_class_id, bbox, all_touched, raster_transformers
+        )
+
     def _get_chip(self, window, out_shape: Optional[Tuple[int, int]] = None):
         """Return the chip located in the window.
 
@@ -430,7 +460,8 @@ class ConfidenceLabelSource(RasterizedSource):
             window,
             background_class_id=self.background_class_id,
             extent=self.extent,
-            all_touched=self.all_touched)
+            all_touched=self.all_touched,
+        )
         return np.expand_dims(chip, 2)
 
 
@@ -528,9 +559,7 @@ class SemanticSegmentationSlidingWindowGeoDatasetCustom(
         self.ignore_aoi = ignore_aoi
         super().__init__(**kwargs)
 
-    def _filter_by_aoi(self,
-                       windows: List['Box'],
-                       within: bool = True) -> List['Box']:
+    def _filter_by_aoi(self, windows: List["Box"], within: bool = True) -> List["Box"]:
         """Filters windows by a list of AOI polygons
 
         Args:
@@ -542,13 +571,13 @@ class SemanticSegmentationSlidingWindowGeoDatasetCustom(
         for window in windows:
             w = window.to_shapely()
             for polygon in self.scene.aoi_polygons_bbox_coords:
-                if ((within and w.centroid.within(polygon))
-                        or ((not within) and w.intersects(polygon))):
+                if (within and w.centroid.within(polygon)) or (
+                    (not within) and w.intersects(polygon)
+                ):
                     result.append(window)
                     break
 
         return result
-
 
     def init_windows(self) -> None:
         """Pre-compute windows."""
@@ -559,11 +588,11 @@ class SemanticSegmentationSlidingWindowGeoDatasetCustom(
             pad_direction=self.pad_direction,
         )
         if len(self.scene.aoi_polygons_bbox_coords) > 0 and not self.ignore_aoi:
-            windows = Box.filter_by_aoi(windows,
-                                        self.scene.aoi_polygons_bbox_coords,
-                                        within=False)
-            
-            #if you want the windows centroid to be within the aoi, then use this:
+            windows = Box.filter_by_aoi(
+                windows, self.scene.aoi_polygons_bbox_coords, within=False
+            )
+
+            # if you want the windows centroid to be within the aoi, then use this:
             # windows = self._filter_by_aoi(windows,
             #                               within=True)
         self.windows = windows

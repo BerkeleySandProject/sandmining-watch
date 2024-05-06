@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Optional, List
 from rastervision.core.data import ClassConfig
 
+
 class ModelChoice(Enum):
     Test = "test"
     UnetSmall = "unet-small"
@@ -16,6 +17,8 @@ class ModelChoice(Enum):
     ResNet34UNet = "resnet34-unet"
     ResNet50UNet = "resnet50-unet"
     SatmaeLargeVITDecoder = "satmae-large-vit-decoder"
+    SatlasSwinBaseSI_MS_UnetDecoder = "satlas-swin-base-si-mis-unet-decoder"
+
 
 class OptimizerChoice(Enum):
     AdamW = "adamw"
@@ -38,15 +41,18 @@ class NormalizationS2Choice(Enum):
     # For each channel, projects 4 standard deviations between [0,255] / [0,1]
     ChannelWise = "channelwise"
     DivideBy10000 = "divideby10000"  # Used by SSL4EO
+    DivideBy255 = "divideby255"  # Used by Satlas
 
 
 class BackpropLossChoice(Enum):
     BCE = "bce_loss"
     DICE = "dice_loss"
 
+
 class ThreeClassVariants(Enum):
     A = "a"
     B = "b"
+
 
 @dataclass
 class SupervisedTrainingConfig:
@@ -60,55 +66,67 @@ class SupervisedTrainingConfig:
     batch_size: int
     learning_rate: float
     datasets: DatasetChoice
+    mine_class_loss_weight: float
     nonmine_class_weight: float
     uncertain_class_weight: float
+
 
 @dataclass
 class ThreeClassConfig:
     three_class_training_method: ThreeClassVariants
     low_confidence_weight: float
 
+
 @dataclass
 class ThreeClassSupervisedTrainingConfig(SupervisedTrainingConfig, ThreeClassConfig):
     pass
 
+
 class FinetuningStratagyChoice(Enum):
     End2EndFinetuning = "end-2-end"  # Nothing is frozen
-    LinearProbing = "linear-probing" # Encoder weights are frozen
-    FreezeEmbed = "freeze-embed" # Only applicable for ViT! Patch embed layer is frozen.
-    LoRA = "lora" # Low Rank Adaptation Linear Probing
+    LinearProbing = "linear-probing"  # Encoder weights are frozen
+    # Only applicable for ViT! Patch embed layer is frozen.
+    FreezeEmbed = "freeze-embed"
+    LoRA = "lora"  # Low Rank Adaptation Linear Probing
+
 
 @dataclass
 class SupervisedFinetuningConfig(SupervisedTrainingConfig):
     finetuning_strategy: FinetuningStratagyChoice
     encoder_weights_path: Optional[bool]
-    num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
+    # Only applicable for SatMaeLargeDoubleUpsampling
+    num_upsampling_layers: Optional[int] = None
     apply_smoothing: Optional[bool] = True
-    smoothing_sigma: Optional[float] = 10.
+    smoothing_sigma: Optional[float] = 10.0
+
 
 @dataclass
 class ThreeClassFineTuningConfig(SupervisedFinetuningConfig, ThreeClassConfig):
     pass
 
+
 @dataclass
 class InferenceConfig(SupervisedTrainingConfig):
     crop_sz: Optional[int]
     encoder_weights_path: Optional[bool]
-    num_upsampling_layers: Optional[int] = None # Only applicable for SatMaeLargeDoubleUpsampling
+    # Only applicable for SatMaeLargeDoubleUpsampling
+    num_upsampling_layers: Optional[int] = None
     apply_smoothing: Optional[bool] = True
-    smoothing_sigma: Optional[float] = 10.
+    smoothing_sigma: Optional[float] = 10.0
     wandb_id: Optional[str] = None
     mean_threshold: Optional[float] = None
-    
-@dataclass 
+
+
+@dataclass
 class ThreeClassInferenceConfig(InferenceConfig, ThreeClassConfig):
     pass
 
 
-## Annotation stuff
+# Annotation stuff
 class AnnotationType(Enum):
     TWO_ClASS = "2class"
     THREE_CLASS = "3class"
+
 
 @dataclass
 class AnnotationConfig:
@@ -116,5 +134,5 @@ class AnnotationConfig:
     class_config: ClassConfig
     num_classes: int
     labelbox_project_id: str
-    postfix: Optional[str] = None # needed when finding the GCP annotations path. by default 2_class doesnt need this
-
+    # needed when finding the GCP annotations path. by default 2_class doesnt need this
+    postfix: Optional[str] = None
