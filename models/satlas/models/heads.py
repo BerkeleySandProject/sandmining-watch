@@ -38,7 +38,8 @@ class FRCNNHead(torch.nn.Module):
         self.task_type = task
         self.use_layers = list(range(len(backbone_channels)))
         num_channels = backbone_channels[self.use_layers[0]][1]
-        featmap_names = ["feat{}".format(i) for i in range(len(self.use_layers))]
+        featmap_names = ["feat{}".format(i)
+                         for i in range(len(self.use_layers))]
         num_classes = num_categories
 
         self.noop_transform = NoopTransform()
@@ -172,13 +173,15 @@ class SimpleHead(torch.nn.Module):
             layers.append(layer)
 
         if self.task_type == "segment":
-            layers.append(torch.nn.Conv2d(use_channels, self.num_outputs, 3, padding=1))
+            layers.append(torch.nn.Conv2d(
+                use_channels, self.num_outputs, 3, padding=1))
             self.loss_func = lambda logits, targets: torch.nn.functional.cross_entropy(
                 logits, targets, reduction="none"
             )
 
         elif self.task_type == "bin_segment":
-            layers.append(torch.nn.Conv2d(use_channels, self.num_outputs, 3, padding=1))
+            layers.append(torch.nn.Conv2d(
+                use_channels, self.num_outputs, 3, padding=1))
 
             def loss_func(logits, targets):
                 targets = targets.argmax(dim=1)
@@ -189,8 +192,10 @@ class SimpleHead(torch.nn.Module):
             self.loss_func = loss_func
 
         elif self.task_type == "regress":
-            layers.append(torch.nn.Conv2d(use_channels, self.num_outputs, 3, padding=1))
-            self.loss_func = lambda outputs, targets: torch.square(outputs - targets)
+            layers.append(torch.nn.Conv2d(
+                use_channels, self.num_outputs, 3, padding=1))
+            self.loss_func = lambda outputs, targets: torch.square(
+                outputs - targets)
 
         elif self.task_type == "classification":
             self.extra = torch.nn.Linear(use_channels, self.num_outputs)
@@ -209,7 +214,7 @@ class SimpleHead(torch.nn.Module):
 
         self.layers = torch.nn.Sequential(*layers)
 
-    def forward(self, image_list, raw_features, targets=None):
+    def forward(self, raw_features, targets=None):
         raw_outputs = self.layers(raw_features[0])
         loss = None
 
@@ -217,7 +222,8 @@ class SimpleHead(torch.nn.Module):
             outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
-                task_targets = torch.stack([target for target in targets], dim=0).long()
+                task_targets = torch.stack(
+                    [target for target in targets], dim=0).long()
                 loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
 
@@ -225,7 +231,8 @@ class SimpleHead(torch.nn.Module):
             outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
-                task_targets = torch.stack([target for target in targets], dim=0).long()
+                task_targets = torch.stack(
+                    [target for target in targets], dim=0).long()
                 task_targets = task_targets.clamp(0, 2)
                 loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
@@ -235,7 +242,8 @@ class SimpleHead(torch.nn.Module):
             outputs = 255 * raw_outputs
 
             if targets is not None:
-                task_targets = torch.stack([target for target in targets], dim=0).long()
+                task_targets = torch.stack(
+                    [target for target in targets], dim=0).long()
                 loss = self.loss_func(raw_outputs, task_targets.float() / 255)
                 loss = loss.mean()
 
@@ -245,7 +253,8 @@ class SimpleHead(torch.nn.Module):
             outputs = torch.nn.functional.softmax(logits, dim=1)
 
             if targets is not None:
-                task_targets = torch.stack([target for target in targets], dim=0).long()
+                task_targets = torch.stack(
+                    [target for target in targets], dim=0).long()
                 loss = self.loss_func(logits, task_targets)
                 loss = loss.mean()
 
@@ -255,7 +264,8 @@ class SimpleHead(torch.nn.Module):
             outputs = torch.sigmoid(logits)
 
             if targets is not None:
-                task_targets = torch.stack([target for target in targets], dim=0).long()
+                task_targets = torch.stack(
+                    [target for target in targets], dim=0).long()
                 loss = self.loss_func(logits, task_targets)
                 loss = loss.mean()
 

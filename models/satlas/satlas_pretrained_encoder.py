@@ -174,10 +174,9 @@ class SatlasPretrained(torch.nn.Module):
             return FRCNNHead("instance", backbone_channels, num_categories)
         return None
 
-    def forward(self, imgs, targets=None):
+    def forward(self, x, targets=None):
         # Define forward pass. Implemented upsampling and argmax.
 
-        x = self.backbone(imgs)
         import ipdb
 
         ipdb.set_trace()
@@ -195,8 +194,7 @@ class SatlasPretrained(torch.nn.Module):
         #     return segmentation_output, loss
         x = self.backbone(x)
         x = self.upsample(x)
-        x = self.head(x)
-        x = x[0]
-        x = torch.argmax(x, dim=1).unsqueeze(1).float()
+        x = self.head(raw_features=x)
+        x = torch.argmax(x[0], dim=1).unsqueeze(1).float()
 
         return x
