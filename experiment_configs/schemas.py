@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
 from rastervision.core.data import ClassConfig
+from models.satlas.utils import Head
 
 
 class ModelChoice(Enum):
@@ -68,7 +69,7 @@ class SupervisedTrainingConfig:
     datasets: DatasetChoice
     mine_class_loss_weight: float
     nonmine_class_weight: float
-    uncertain_class_weight: float
+    num_channels: int
 
 
 @dataclass
@@ -98,6 +99,9 @@ class SupervisedFinetuningConfig(SupervisedTrainingConfig):
     num_upsampling_layers: Optional[int] = None
     apply_smoothing: Optional[bool] = True
     smoothing_sigma: Optional[float] = 10.0
+    # Only applicable for Satlas
+    fpn: Optional[bool] = True
+    head: Optional[Head] = Head.BINSEGMENT
 
 
 @dataclass

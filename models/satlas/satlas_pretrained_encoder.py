@@ -1,19 +1,21 @@
 import torch
 import torch.nn
-import requests
-from io import BytesIO
+import os
+import ipdb
 
-from utils import (
+from .utils import (
     Backbone,
     Head,
-    SatlasPretrain_weights,
     adjust_state_dict_prefix,
-    Weights,
 )
-from models.backbone import SwinBackbone
+from .models.backbone import SwinBackbone
+from .models.fpn import FPN, Upsample
+from .models.heads import SimpleHead
+
+import torch.nn.functional as F
 
 
-class SatlasPretrain(torch.nn.Module):
+class SatlasPretrained(torch.nn.Module):
     def __init__(
         self,
         num_channels=3,
@@ -22,7 +24,7 @@ class SatlasPretrain(torch.nn.Module):
         fpn=False,
         head=None,
         num_categories=None,
-        weights=None,
+        weights_path=None,
     ):
         """
         Initializes a model, based on desired imagery source and model components. This class can be used directly to
@@ -39,7 +41,7 @@ class SatlasPretrain(torch.nn.Module):
             weights (torch weights): Weights to be loaded into the model. Defaults to None (random initialization) unless
                                     initialized using the Weights class.
         """
-        super(SatlasPretrain, self).__init__()
+        super(SatlasPretrained, self).__init__()
 
         # Validate user-provided arguments.
         if not isinstance(backbone, Backbone):
@@ -50,17 +52,20 @@ class SatlasPretrain(torch.nn.Module):
             raise ValueError("Must specify num_categories if head is desired.")
 
         self.backbone = self._initialize_backbone(
-            num_channels, backbone, multi_image, weights
+            num_channels, backbone, multi_image, weights_path
         )
 
+        ipdb.set_trace()
         if fpn:
+            weights = torch.load(weights_path)
             self.fpn = self._initialize_fpn(
                 self.backbone.out_channels, weights)
             self.upsample = Upsample(self.fpn.out_channels)
         else:
             self.fpn = None
 
-        if head:
+        ipdb.set_trace()
+        if head is not None:
             self.head = (
                 self._initialize_head(
                     head, self.fpn.out_channels, num_categories)
@@ -72,7 +77,37 @@ class SatlasPretrain(torch.nn.Module):
         else:
             self.head = None
 
-    def _initialize_backbone(self, num_channels, backbone_arch, multi_image, weights):
+    def load_encoder_weights(self, path_to_weights):
+        if not os.path.isfile(path_to_weights):
+            raise ValueError(f"No checkpoint found at {path_to_weights}")
+        print(f"Satlas: Loading encoder weights from {path_to_weights}")
+        checkpoint = torch.load(path_to_weights, map_location="cpu")
+
+        # check if checkpoint has a 'model' key
+        # this indicates that you're loading the original Satlas pretrained weights
+
+        # interpolate_pos_embed(self.encoder, checkpoint_model)
+        # Load pretrained weights into the intialized backbone if weights were specified.
+        prefix_allowed_count = 1
+        if checkpoint is not None:
+            state_dict = adjust_state_dict_prefix(
+                checkpoint, "backbone", "backbone.", prefix_allowed_count
+            )
+            msg = self.backbone.load_state_dict(state_dict)
+
+        if msg.missing_keys:
+            print("Warning! Missing keys:")
+            print(msg.missing_keys)
+        # print(msg)
+
+    def freeze_encoder_weights(self):
+        print("SatlasPretrained: Freezing backbone/encoder weights")
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+
+    def _initialize_backbone(
+        self, num_channels, backbone_arch, multi_image, weights_path
+    ):
         # Load backbone model according to specified architecture.
         if backbone_arch == Backbone.SWINB:
             backbone = SwinBackbone(num_channels, arch="swinb")
@@ -96,7 +131,9 @@ class SatlasPretrain(torch.nn.Module):
             prefix_allowed_count = 1
 
         # Load pretrained weights into the intialized backbone if weights were specified.
-        if weights is not None:
+        ipdb.set_trace()
+        if weights_path is not None:
+            weights = torch.load(weights_path)
             state_dict = adjust_state_dict_prefix(
                 weights, "backbone", "backbone.", prefix_allowed_count
             )
@@ -135,91 +172,21 @@ class SatlasPretrain(torch.nn.Module):
         return None
 
     def forward(self, imgs, targets=None):
-        # Define forward pass
+        # Define forward pass. Implemented upsampling and argmax.
+
         x = self.backbone(imgs)
-        if self.fpn:
-            x = self.fpn(x)
-            x = self.upsample(x)
+        import ipdb
+
+        ipdb.set_trace()
+        # if self.fpn == True:
+        #     x = self.fpn(x)
+        #     x = self.upsample(x)
         if self.head:
             x, loss = self.head(imgs, x, targets)
-            return x, loss
+            reshaped_tensor = x.view(32, 32, 3, 40, 40)
+            upsampled_tensor = F.interpolate(
+                reshaped_tensor, size=(160, 160), mode="bilinear", align_corners=False
+            )
+            segmentation_output = torch.argmax(upsampled_tensor, dim=1)
+            return segmentation_output, loss
         return x
-
-
-if __name__ == "__main__":
-    weights_manager = Weights()
-
-    # Test loading in all available pretrained backbone models, without FPN or Head.
-    # Test feeding in a random tensor as input.
-    for model_id in SatlasPretrain_weights.keys():
-        print("Attempting to load ...", model_id)
-        model_info = SatlasPretrain_weights[model_id]
-        model = weights_manager.get_pretrained_model(model_id)
-        rand_img = torch.rand((8, model_info["num_channels"], 128, 128))
-        output = model(rand_img)
-        print("Successfully initialized the pretrained model with ID:", model_id)
-
-    # Test loading in all available pretrained backbone models, with FPN, without Head.
-    # Test feeding in a random tensor as input.
-    for model_id in SatlasPretrain_weights.keys():
-        print("Attempting to load ...", model_id, " with pretrained FPN.")
-        model_info = SatlasPretrain_weights[model_id]
-        model = weights_manager.get_pretrained_model(model_id, fpn=True)
-        rand_img = torch.rand((8, model_info["num_channels"], 128, 128))
-        output = model(rand_img)
-        print(
-            "Successfully initialized the pretrained model with ID:",
-            model_id,
-            " with FPN.",
-        )
-
-    # Test loading in all available pretrained backbones, with FPN and with every possible Head.
-    # Test feeding in a random tensor as input. Randomly generated targets are fed into detection/instance heads.
-    for model_id in SatlasPretrain_weights.keys():
-        model_info = SatlasPretrain_weights[model_id]
-        for head in Head:
-            print(
-                "Attempting to load ...",
-                model_id,
-                " with pretrained FPN and randomly initialized ",
-                head,
-                " Head.",
-            )
-            model = weights_manager.get_pretrained_model(
-                model_id, fpn=True, head=head, num_categories=2
-            )
-            rand_img = torch.rand((1, model_info["num_channels"], 128, 128))
-
-            rand_targets = None
-            if head == Head.DETECT:
-                rand_targets = [
-                    {
-                        "boxes": torch.tensor(
-                            [[100, 100, 110, 110], [30, 30, 40, 40]],
-                            dtype=torch.float32,
-                        ),
-                        "labels": torch.tensor([0, 1], dtype=torch.int64),
-                    }
-                ]
-            elif head == Head.INSTANCE:
-                rand_targets = [
-                    {
-                        "boxes": torch.tensor(
-                            [[100, 100, 110, 110], [30, 30, 40, 40]],
-                            dtype=torch.float32,
-                        ),
-                        "labels": torch.tensor([0, 1], dtype=torch.int64),
-                        "masks": torch.zeros_like(rand_img),
-                    }
-                ]
-            elif head in [Head.SEGMENT, Head.BINSEGMENT, Head.REGRESS]:
-                rand_targets = torch.zeros_like((rand_img))
-
-            output, loss = model(rand_img, rand_targets)
-            print(
-                "Successfully initialized the pretrained model with ID:",
-                model_id,
-                " with FPN and randomly initialized ",
-                head,
-                " Head.",
-            )

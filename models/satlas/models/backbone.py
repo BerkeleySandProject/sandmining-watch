@@ -111,7 +111,7 @@ class AggregationBackbone(torch.nn.Module):
         # First get features of each image.
         all_features = []
         for i in range(0, x.shape[1], self.image_channels):
-            features = self.backbone(x[:, i: i + self.image_channels, :, :])
+            features = self.backbone(x[:, i : i + self.image_channels, :, :])
             all_features.append(features)
 
         # Now compute aggregation over each group.

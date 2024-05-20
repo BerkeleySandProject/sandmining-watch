@@ -94,7 +94,7 @@ def observation_to_scene(
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers,
-            low_conf_weight=config.uncertain_class_weight,
+            low_conf_weight=config.low_confidence_weight,
         )
     elif config.datasets == DatasetChoice.S2:
         return create_scene_s2(
@@ -103,7 +103,7 @@ def observation_to_scene(
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers,
-            low_conf_weight=config.uncertain_class_weight,
+            low_conf_weight=config.low_confidence_weight,
         )
     elif config.datasets == DatasetChoice.S2_L1C:
         return create_scene_s2(
@@ -112,7 +112,7 @@ def observation_to_scene(
             label_uri=observation.uri_to_annotations,
             scene_id=observation.name,
             rivers_uri=observation.uri_to_rivers,
-            low_conf_weight=config.uncertain_class_weight,
+            low_conf_weight=config.low_confidence_weight,
         )
     else:
         raise ValueError("Unexpected value for config.datasets")

@@ -11,8 +11,12 @@ from experiment_configs.schemas import (
     ThreeClassVariants,
 )
 from typing import Union
+import os
+import requests
 
 from peft import LoraConfig, get_peft_model
+
+from .satlas.utils import Backbone, Head, SatlasPretrain_weights
 
 
 def print_trainable_parameters(model):
@@ -92,10 +96,36 @@ def model_factory(
             num_levels=config.num_upsampling_layers,
         )
     elif config.model_type == ModelChoice.SatlasSwinBaseSI_MS_UnetDecoder:
+
+        def download_encoder_weights(path_to_weights):
+            print(os.path.dirname(path_to_weights))
+            if not os.path.exists(os.path.dirname(path_to_weights)):
+                os.makedirs(os.path.dirname(path_to_weights))
+                # recursively create directories if necessary
+            if not os.path.isfile(path_to_weights):
+                r = requests.get(
+                    SatlasPretrain_weights["Sentinel2_SwinB_SI_MS"]["url"])
+                with open(path_to_weights, "wb") as f:
+                    f.write(r.content)
+            return path_to_weights
+
+        path_to_weights = download_encoder_weights(config.encoder_weights_path)
+        import torch
+
         from models.satlas.satlas_pretrained_encoder import SatlasPretrained
         from models.satlas.utils import Weights
 
-        model = SatlasPretrained(vit_size="base")
+        import ipdb
+
+        ipdb.set_trace()
+        model = SatlasPretrained(
+            num_channels=config.num_channels,
+            backbone=Backbone.SWINB,
+            fpn=config.fpn,
+            head=config.head,
+            num_categories=3,
+            weights_path=path_to_weights,
+        )
     elif config.model_type == ModelChoice.UnetResBlocks:
         from models.unet.unet_resblocks import UNetResBlocks
 

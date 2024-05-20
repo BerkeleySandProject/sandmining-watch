@@ -140,26 +140,25 @@ fully_supervised_band_selection_idx: list[int] = [
 #     loss_fn=BackpropLossChoice.BCE,
 # )
 
-satmae_large_config = SupervisedFinetuningConfig(
-    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
-    optimizer=OptimizerChoice.AdamW,
-    tile_size=160,
-    s2_channels=satmea_pretrained_encoder_bands_idx,
-    s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=100,
-    learning_rate=1e-3,
-    datasets=DatasetChoice.S2,
-    mine_class_loss_weight=6.0,
-    nonmine_class_weight=3.0,
-    uncertain_class_weight=1.0,
-    finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
-    encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
-    loss_fn=BackpropLossChoice.BCE,
-    num_upsampling_layers=2,
-    apply_smoothing=True,
-    smoothing_sigma=5.0,
-)
-
+# satmae_large_config = SupervisedFinetuningConfig(
+#     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+#     optimizer=OptimizerChoice.AdamW,
+#     tile_size=160,
+#     s2_channels=satmea_pretrained_encoder_bands_idx,
+#     s2_normalization=NormalizationS2Choice.ChannelWise,
+#     batch_size=100,
+#     learning_rate=1e-3,
+#     datasets=DatasetChoice.S2,
+#     mine_class_loss_weight=6.0,
+#     nonmine_class_weight=3.0,
+#     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
+#     encoder_weights_path="/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
+#     loss_fn=BackpropLossChoice.BCE,
+#     num_upsampling_layers=2,
+#     apply_smoothing=True,
+#     smoothing_sigma=5.0,
+# )
+#
 # satmae_large_config_lora = SupervisedFinetuningConfig(
 #     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
 #     optimizer=OptimizerChoice.AdamW,
@@ -208,24 +207,27 @@ satmae_large_config = SupervisedFinetuningConfig(
 #     **vars(satmae_large_config_lora),
 # )
 
-satlas_swin_base_si_ms_linear_decoder_config = SupervisedFinetuningConfig(
+satlas_swin_base_si_ms_linear_decoder_config = ThreeClassFineTuningConfig(
     model_type=ModelChoice.SatlasSwinBaseSI_MS_UnetDecoder,
     optimizer=OptimizerChoice.AdamW,
     tile_size=160,
     s2_channels=satlas_pretrained_encoder_bands,
     s2_normalization=NormalizationS2Choice.DivideBy255,
-    batch_size=100,
+    batch_size=32,
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=6.0,
     nonmine_class_weight=3.0,
-    uncertain_class_weight=1.0,
     finetuning_strategy=FinetuningStratagyChoice.LinearProbing,
     encoder_weights_path="/data/sand_mining/checkpoints/satlas_orig/pretrain-swinb-si-ms.pth",
     loss_fn=BackpropLossChoice.BCE,
-    num_upsampling_layers=2,
+    num_upsampling_layers=None,
     apply_smoothing=True,
     smoothing_sigma=5.0,
+    three_class_training_method=ThreeClassVariants.B,
+    low_confidence_weight=1.0,
+    num_channels=9,
+    fpn=True,
 )
 
 # Inference
