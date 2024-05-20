@@ -270,18 +270,13 @@ class Learner(ABC):
 
     def train_step(self, batch, batch_ind):
         ipdb.set_trace()
+        # DEBUG: Check forward pass and loss calculation
         # x, y, w = batch
         x, y = batch
-
-        # FPN is being activated for some reason, not sure why
-        stuff = self.model.fpn(self.model.backbone(x))
-        stuff = self.model.upsample(stuff)
-        stuff = self.model.head(image_list=[], raw_features=stuff)
-        # out = self.post_forward(stuff)
-        out = stuff[0]
+        out = self.post_forward(self.model(x))
         # In the following, we hardcoded our metric names for our loss functions
 
-        return self.calculate_losses(out, y, "train_")
+        return self.calculate_losses(out_classes, y, "train_")
 
     def calculate_losses(self, out, y, prefix=""):
         return {
@@ -394,6 +389,7 @@ class Learner(ABC):
         with tqdm(self.train_dl, desc="Training") as bar:
             for batch_ind, (x, y) in enumerate(bar):
                 ipdb.set_trace()
+                # DEBUG: Check data batching
                 x, y = self.process_batch(x, y)
                 batch = (x, y)
                 optimizer.zero_grad()

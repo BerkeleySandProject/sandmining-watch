@@ -1,4 +1,4 @@
-# Mostly copied from https://github.com/allenai/satlaspretrain_models/blob/main/satlaspretrain_models/utils.py
+# Mostly copied from https://gb.com/allenai/satlaspretrain_models/blob/main/satlaspretrain_models/utils.py
 from enum import Enum, auto
 
 

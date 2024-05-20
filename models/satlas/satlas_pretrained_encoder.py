@@ -56,6 +56,7 @@ class SatlasPretrained(torch.nn.Module):
         )
 
         ipdb.set_trace()
+        # DEBUG: Ensure Feature Pyramid Network works properly
         if fpn:
             weights = torch.load(weights_path)
             self.fpn = self._initialize_fpn(
@@ -65,6 +66,7 @@ class SatlasPretrained(torch.nn.Module):
             self.fpn = None
 
         ipdb.set_trace()
+        # DEBUG: Ensure segmentation head initializes properly
         if head is not None:
             self.head = (
                 self._initialize_head(
@@ -132,6 +134,7 @@ class SatlasPretrained(torch.nn.Module):
 
         # Load pretrained weights into the intialized backbone if weights were specified.
         ipdb.set_trace()
+        # DEBUG: Ensure weights are loaded and initialized properly
         if weights_path is not None:
             weights = torch.load(weights_path)
             state_dict = adjust_state_dict_prefix(
@@ -178,15 +181,22 @@ class SatlasPretrained(torch.nn.Module):
         import ipdb
 
         ipdb.set_trace()
+        # DEBUG: Ensure forward pass works properly
         # if self.fpn == True:
         #     x = self.fpn(x)
         #     x = self.upsample(x)
-        if self.head:
-            x, loss = self.head(imgs, x, targets)
-            reshaped_tensor = x.view(32, 32, 3, 40, 40)
-            upsampled_tensor = F.interpolate(
-                reshaped_tensor, size=(160, 160), mode="bilinear", align_corners=False
-            )
-            segmentation_output = torch.argmax(upsampled_tensor, dim=1)
-            return segmentation_output, loss
+        # if self.head:
+        #     x, loss = self.head(imgs, x, targets)
+        #     reshaped_tensor = x.view(32, 32, 3, 40, 40)
+        #     upsampled_tensor = F.interpolate(
+        #         reshaped_tensor, size=(160, 160), mode="bilinear", align_corners=False
+        #     )
+        #     segmentation_output = torch.argmax(upsampled_tensor, dim=1)
+        #     return segmentation_output, loss
+        x = self.backbone(x)
+        x = self.upsample(x)
+        x = self.head(x)
+        x = x[0]
+        x = torch.argmax(x, dim=1).unsqueeze(1).float()
+
         return x
