@@ -55,7 +55,7 @@ class SatlasPretrained(torch.nn.Module):
             num_channels, backbone, multi_image, weights_path
         )
 
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Ensure Feature Pyramid Network works properly
         if fpn:
             weights = torch.load(weights_path)
@@ -65,7 +65,7 @@ class SatlasPretrained(torch.nn.Module):
         else:
             self.fpn = None
 
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Ensure segmentation head initializes properly
         if head is not None:
             self.head = (
@@ -79,7 +79,7 @@ class SatlasPretrained(torch.nn.Module):
         else:
             self.head = None
 
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Ensure that all Upsample and Head param groups require gradients
         for param in self.upsample.parameters():
             param.requires_grad = True
@@ -145,7 +145,7 @@ class SatlasPretrained(torch.nn.Module):
             prefix_allowed_count = 1
 
         # Load pretrained weights into the intialized backbone if weights were specified.
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Ensure weights are loaded and initialized properly
         if weights_path is not None:
             weights = torch.load(weights_path)
@@ -191,7 +191,7 @@ class SatlasPretrained(torch.nn.Module):
 
         import ipdb
 
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Ensure forward pass works properly
         with torch.no_grad():
             x1 = self.backbone(x)

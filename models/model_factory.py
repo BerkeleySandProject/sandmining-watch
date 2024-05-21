@@ -103,8 +103,7 @@ def model_factory(
                 os.makedirs(os.path.dirname(path_to_weights))
                 # recursively create directories if necessary
             if not os.path.isfile(path_to_weights):
-                r = requests.get(
-                    SatlasPretrain_weights["Sentinel2_SwinB_SI_MS"]["url"])
+                r = requests.get(SatlasPretrain_weights["Sentinel2_SwinB_SI_MS"]["url"])
                 with open(path_to_weights, "wb") as f:
                     f.write(r.content)
             return path_to_weights
@@ -117,7 +116,7 @@ def model_factory(
 
         import ipdb
 
-        ipdb.set_trace()
+        # ipdb.set_trace()
         model = SatlasPretrained(
             num_channels=config.num_channels,
             backbone=Backbone.SWINB,
@@ -149,8 +148,7 @@ def model_factory(
     else:
         raise ValueError("Error in model selection")
 
-    initial_state = {name: param.clone()
-                     for name, param in model.state_dict().items()}
+    initial_state = {name: param.clone() for name, param in model.state_dict().items()}
 
     if isinstance(config, SupervisedFinetuningConfig):
         if config.encoder_weights_path:
@@ -160,18 +158,17 @@ def model_factory(
             config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing
             or config.finetuning_strategy == FinetuningStratagyChoice.LoRA
         ):
-            ipdb.set_trace()
+            # ipdb.set_trace()
             # DEBUG: Check that encoder/backbone weights are frozen
             model.freeze_encoder_weights()
             if config.model_type == ModelChoice.SatlasSwinBaseSI_MS_UnetDecoder:
-                ipdb.set_trace()
+                # ipdb.set_trace()
                 # DEBUG: Check that FPN weights are frozen correctly
                 model.freeze_fpn_weights()
         elif config.finetuning_strategy == FinetuningStratagyChoice.FreezeEmbed:
             model.freeze_embed_weights()
         elif config.finetuning_strategy == FinetuningStratagyChoice.LayerwiseLrDecay:
-            raise NotImplementedError(
-                "LayerwiseLrDecay is not yet implemented")
+            raise NotImplementedError("LayerwiseLrDecay is not yet implemented")
         else:
             raise ValueError("Unknown choice for finetuning strategy")
 

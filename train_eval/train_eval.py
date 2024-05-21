@@ -10,6 +10,7 @@ from google.cloud import storage
 from torch.utils.data import ConcatDataset
 import json
 import ipdb
+import wandb
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -70,7 +71,7 @@ def main(_):
         scene_to_validation_ds(config, scene) for scene in validation_scenes
     ]
 
-    ipdb.set_trace()
+    # ipdb.set_trace()
     # DEBUG: Check training and validation datasets
     train_dataset_merged = ConcatDataset(training_datasets)
     val_dataset_merged = ConcatDataset(validation_datasets)
@@ -89,7 +90,7 @@ def main(_):
 
     optimizer = optimizer_factory(config, model)
 
-    learner = BinarySegmentationLearner(
+    learner = MultiSegmentationLearner(
         config=config,
         model=model,
         optimizer=optimizer,
@@ -97,98 +98,101 @@ def main(_):
         train_ds=train_dataset_merged,
         # for development and debugging, use training_datasets[1] or similar to speed up
         valid_ds=val_dataset_merged,
-        # output_dir=expanduser("~/sandmining-watch/out/OUTPUT_DIR"),
+        output_dir=("~/sandmining-watch/out/satlas"),
+        save_model_checkpoints=True,
     )
 
     learner.log_data_stats()
 
     # Run this if you want to log the run to weights and biases
-    # learner.initialize_wandb_run()
-    learner.train(epochs=1)
+    learner.initialize_wandb_run()
+    learner.train(epochs=10)
 
-    # Evaluate
-    ipdb.set_trace()
-    # DEBUG: Check successful training before evaluation
-    from ml.learner import BinarySegmentationPredictor, MultiSegmentationLearner
-    from utils.rastervision_pipeline import scene_to_inference_ds
+    def evaluate():
+        # Evaluate
+        ipdb.set_trace()
+        # DEBUG: Check successful training before evaluation
+        from ml.learner import BinarySegmentationPredictor, MultiSegmentationLearner
+        from utils.rastervision_pipeline import scene_to_inference_ds
 
-    # evaluation_datasets =  [
-    #     scene_to_inference_ds(
-    #         config, scene, full_image=True
-    #     ) for scene in validation_scenes
-    # ]
-    evaluation_datasets = []
-    all_observations = observation_factory(dataset_json)
-    for observation in all_observations:
-        if (
-            observation.cluster_id == 0
-        ):  # statically assign clusetr zero to validation set
-            evaluation_datasets.append(
-                scene_to_inference_ds(
-                    config,
-                    observation_to_scene(
-                        config, observation, weights_class=False),
-                    full_image=True,
+        # evaluation_datasets =  [
+        #     scene_to_inference_ds(
+        #         config, scene, full_image=True
+        #     ) for scene in validation_scenes
+        # ]
+        evaluation_datasets = []
+        all_observations = observation_factory(dataset_json)
+        for observation in all_observations:
+            if (
+                observation.cluster_id == 0
+            ):  # statically assign clusetr zero to validation set
+                evaluation_datasets.append(
+                    scene_to_inference_ds(
+                        config,
+                        observation_to_scene(
+                            config, observation, weights_class=False),
+                        full_image=True,
+                    )
                 )
+
+        predictor = BinarySegmentationPredictor(
+            config,
+            model,
+        )
+
+        # # Alternatively: specify path to trained weights
+        # path_to_weights = expanduser("~/sandmining-watch/out/1102-satmae-1/last-model.pth")
+        # predictor = BinarySegmentationPredictor(
+        #     config,
+        #     model,
+        #     path_to_weights,
+        # )
+
+        from ml.eval_utils import (
+            evaluate_predicitions,
+            make_wandb_segmentation_masks,
+            make_wandb_predicted_probs_images,
+        )
+        from utils.visualizing import raster_source_to_rgb
+
+        prediction_results_list = []
+
+        for ds in evaluation_datasets[:1]:
+            predictions = predictor.predict_mine_probability_for_site(ds)
+
+            rgb_img = raster_source_to_rgb(ds.scene.raster_source)
+            prediction_results_list.append(
+                {
+                    "predictions": predictions,
+                    "ground_truth": ds.scene.label_source.get_label_arr(),
+                    "rgb_img": rgb_img,
+                    "name": ds.scene.id,
+                }
             )
 
-    predictor = BinarySegmentationPredictor(
-        config,
-        model,
-    )
+        evaluation_results_dict = evaluate_predicitions(
+            prediction_results_list)
 
-    # # Alternatively: specify path to trained weights
-    # path_to_weights = expanduser("~/sandmining-watch/out/1102-satmae-1/last-model.pth")
-    # predictor = BinarySegmentationPredictor(
-    #     config,
-    #     model,
-    #     path_to_weights,
-    # )
+        assert wandb.run is not None
 
-    from ml.eval_utils import (
-        evaluate_predicitions,
-        make_wandb_segmentation_masks,
-        make_wandb_predicted_probs_images,
-    )
-    from utils.visualizing import raster_source_to_rgb
-
-    prediction_results_list = []
-
-    for ds in evaluation_datasets[:1]:
-        predictions = predictor.predict_mine_probability_for_site(ds)
-
-        rgb_img = raster_source_to_rgb(ds.scene.raster_source)
-        prediction_results_list.append(
+        # Add lists of W&B images to dict
+        evaluation_results_dict.update(
             {
-                "predictions": predictions,
-                "ground_truth": ds.scene.label_source.get_label_arr(),
-                "rgb_img": rgb_img,
-                "name": ds.scene.id,
+                "Segmenation masks": make_wandb_segmentation_masks(
+                    prediction_results_list
+                ),
+                "Predicted probabilites": make_wandb_predicted_probs_images(
+                    prediction_results_list
+                ),
             }
         )
 
-    evaluation_results_dict = evaluate_predicitions(prediction_results_list)
+        # Log to W&B
+        wandb.log(evaluation_results_dict)
 
-    import wandb
+        return
 
-    assert wandb.run is not None
-
-    # Add lists of W&B images to dict
-    evaluation_results_dict.update(
-        {
-            "Segmenation masks": make_wandb_segmentation_masks(prediction_results_list),
-            "Predicted probabilites": make_wandb_predicted_probs_images(
-                prediction_results_list
-            ),
-        }
-    )
-
-    # Log to W&B
-    wandb.log(evaluation_results_dict)
-
-    wandb.finish()
-
-    return
+    wandb.finish
 
 
 def visualize():

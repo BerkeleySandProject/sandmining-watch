@@ -269,16 +269,15 @@ class Learner(ABC):
         return metric_names
 
     def train_step(self, batch, batch_ind):
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Check forward pass and loss calculation
         # x, y, w = batch
         x, y = batch
         out = self.post_forward(self.model(x))
-        out_classes = torch.softmax(out, dim=1).float()
 
         # In the following, we hardcoded our metric names for our loss functions
 
-        return self.calculate_losses(out_classes, y, "train_")
+        return self.calculate_losses(out, y.long(), "train_")
 
     def calculate_losses(self, out, y, prefix=""):
         return {
@@ -287,7 +286,8 @@ class Learner(ABC):
         }
 
     def validate_step(self, batch, batch_ind):
-        x, y, w = batch
+        # x, y, w = batch
+        x, y = batch
         out = self.post_forward(self.model(x))
         out_probabilities = torch.sigmoid(out)
 
@@ -390,7 +390,7 @@ class Learner(ABC):
 
         with tqdm(self.train_dl, desc="Training") as bar:
             for batch_ind, (x, y) in enumerate(bar):
-                ipdb.set_trace()
+                # ipdb.set_trace()
                 # DEBUG: Check data batching
                 x, y = self.process_batch(x, y)
                 batch = (x, y)
@@ -780,7 +780,7 @@ class MultiSegmentationLearner(Learner):
         return metrics
 
     def calculate_losses(self, out, y, prefix=""):
-        y = y.float()
+        # y = y.float()
         return super().calculate_losses(out, y, prefix)
 
 

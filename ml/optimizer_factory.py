@@ -10,7 +10,7 @@ def optimizer_factory(
     config: SupervisedTrainingConfig, model: nn.Module
 ) -> optim.Optimizer:
     if config.optimizer == OptimizerChoice.AdamW:
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Check that optimizer only optimzes certain specified layers
         # return optim.AdamW(model.parameters(), lr=config.learning_rate)
         return optim.AdamW(
