@@ -1,12 +1,22 @@
 from torch import nn
 import torch.optim as optim
-#from models.satmae.util.lr_decay import param_groups_lrd_2
 
+# from models.satmae.util.lr_decay import param_groups_lrd_2
+import ipdb
 from experiment_configs.schemas import SupervisedTrainingConfig, OptimizerChoice
 
-def optimizer_factory(config:SupervisedTrainingConfig , model:nn.Module) -> optim.Optimizer:
+
+def optimizer_factory(
+    config: SupervisedTrainingConfig, model: nn.Module
+) -> optim.Optimizer:
     if config.optimizer == OptimizerChoice.AdamW:
-        return optim.AdamW(model.parameters(), lr=config.learning_rate)
+        ipdb.set_trace()
+        # DEBUG: Check that optimizer only optimzes certain specified layers
+        # return optim.AdamW(model.parameters(), lr=config.learning_rate)
+        return optim.AdamW(
+            filter(lambda p: p.requires_grad is True, model.parameters()),
+            lr=config.learning_rate,
+        )
     elif config.optimizer == OptimizerChoice.SDG:
         return optim.SGD(model.parameters(), lr=config.learning_rate)
     else:

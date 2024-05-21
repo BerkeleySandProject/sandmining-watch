@@ -160,7 +160,13 @@ def model_factory(
             config.finetuning_strategy == FinetuningStratagyChoice.LinearProbing
             or config.finetuning_strategy == FinetuningStratagyChoice.LoRA
         ):
+            ipdb.set_trace()
+            # DEBUG: Check that encoder/backbone weights are frozen
             model.freeze_encoder_weights()
+            if config.model_type == ModelChoice.SatlasSwinBaseSI_MS_UnetDecoder:
+                ipdb.set_trace()
+                # DEBUG: Check that FPN weights are frozen correctly
+                model.freeze_fpn_weights()
         elif config.finetuning_strategy == FinetuningStratagyChoice.FreezeEmbed:
             model.freeze_embed_weights()
         elif config.finetuning_strategy == FinetuningStratagyChoice.LayerwiseLrDecay:

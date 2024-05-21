@@ -108,7 +108,7 @@ def main(_):
 
     # Evaluate
     ipdb.set_trace()
-    # DEBUG: Check all is well before evaluation
+    # DEBUG: Check successful training before evaluation
     from ml.learner import BinarySegmentationPredictor, MultiSegmentationLearner
     from utils.rastervision_pipeline import scene_to_inference_ds
 

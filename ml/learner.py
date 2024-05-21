@@ -274,9 +274,11 @@ class Learner(ABC):
         # x, y, w = batch
         x, y = batch
         out = self.post_forward(self.model(x))
+        out_classes = torch.softmax(out, dim=1).float()
+
         # In the following, we hardcoded our metric names for our loss functions
 
-        return self.calculate_losses(out, y, "train_")
+        return self.calculate_losses(out_classes, y, "train_")
 
     def calculate_losses(self, out, y, prefix=""):
         return {

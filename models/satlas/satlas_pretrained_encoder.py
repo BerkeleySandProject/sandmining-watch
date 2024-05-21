@@ -79,6 +79,13 @@ class SatlasPretrained(torch.nn.Module):
         else:
             self.head = None
 
+        ipdb.set_trace()
+        # DEBUG: Ensure that all Upsample and Head param groups require gradients
+        for param in self.upsample.parameters():
+            param.requires_grad = True
+        for param in self.head.parameters():
+            param.requires_grad = True
+
     def load_encoder_weights(self, path_to_weights):
         if not os.path.isfile(path_to_weights):
             raise ValueError(f"No checkpoint found at {path_to_weights}")
@@ -105,6 +112,11 @@ class SatlasPretrained(torch.nn.Module):
     def freeze_encoder_weights(self):
         print("SatlasPretrained: Freezing backbone/encoder weights")
         for param in self.backbone.parameters():
+            param.requires_grad = False
+
+    def freeze_fpn_weights(self):
+        print("SatlasPretrained: Freezing FPN weights")
+        for param in self.fpn.parameters():
             param.requires_grad = False
 
     def _initialize_backbone(
@@ -181,20 +193,11 @@ class SatlasPretrained(torch.nn.Module):
 
         ipdb.set_trace()
         # DEBUG: Ensure forward pass works properly
-        # if self.fpn == True:
-        #     x = self.fpn(x)
-        #     x = self.upsample(x)
-        # if self.head:
-        #     x, loss = self.head(imgs, x, targets)
-        #     reshaped_tensor = x.view(32, 32, 3, 40, 40)
-        #     upsampled_tensor = F.interpolate(
-        #         reshaped_tensor, size=(160, 160), mode="bilinear", align_corners=False
-        #     )
-        #     segmentation_output = torch.argmax(upsampled_tensor, dim=1)
-        #     return segmentation_output, loss
-        x = self.backbone(x)
-        x = self.upsample(x)
-        x = self.head(raw_features=x)
-        x = torch.argmax(x[0], dim=1).unsqueeze(1).float()
+        with torch.no_grad():
+            x1 = self.backbone(x)
+            x2 = self.fpn(x1)
+        x3 = self.upsample(x2)
+        x4 = self.head(raw_features=x3)[0]
+        # x = torch.argmax(x[0], dim=1).unsqueeze(1).float()
 
-        return x
+        return x4
