@@ -175,9 +175,9 @@ class SimpleHead(torch.nn.Module):
         if self.task_type == "segment":
             layers.append(torch.nn.Conv2d(
                 use_channels, self.num_outputs, 3, padding=1))
-            self.loss_func = lambda logits, targets: torch.nn.functional.cross_entropy(
-                logits, targets, reduction="none"
-            )
+            # self.loss_func = lambda logits, targets: torch.nn.functional.cross_entropy(
+            #     logits, targets, reduction="none"
+            # )
 
         elif self.task_type == "bin_segment":
             layers.append(torch.nn.Conv2d(
@@ -190,27 +190,6 @@ class SimpleHead(torch.nn.Module):
                 )[:, None, :, :]
 
             self.loss_func = loss_func
-
-        elif self.task_type == "regress":
-            layers.append(torch.nn.Conv2d(
-                use_channels, self.num_outputs, 3, padding=1))
-            self.loss_func = lambda outputs, targets: torch.square(
-                outputs - targets)
-
-        elif self.task_type == "classification":
-            self.extra = torch.nn.Linear(use_channels, self.num_outputs)
-            self.loss_func = lambda logits, targets: torch.nn.functional.cross_entropy(
-                logits, targets, reduction="none"
-            )
-
-        elif self.task_type == "multi-label-classification":
-            self.extra = torch.nn.Linear(use_channels, self.num_outputs)
-            self.loss_func = (
-                lambda logits,
-                targets: torch.nn.functional.binary_cross_entropy_with_logits(
-                    logits, targets, reduction="none"
-                )
-            )
 
         self.layers = torch.nn.Sequential(*layers)
 
@@ -237,36 +216,75 @@ class SimpleHead(torch.nn.Module):
                 loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
 
-        elif self.task_type == "regress":
-            raw_outputs = raw_outputs[:, 0, :, :]
-            outputs = 255 * raw_outputs
+        return outputs, loss
+
+
+class ImprovedHead(torch.nn.Module):
+    def __init__(self, task, backbone_channels, num_categories=2):
+        super(ImprovedHead, self).__init__()
+
+        self.task_type = task
+
+        use_channels = backbone_channels[0][1]
+        num_layers = 2
+        self.num_outputs = num_categories
+        if self.num_outputs is None:
+            if task_type == "regress":
+                self.num_outputs = 1
+            else:
+                self.num_outputs = 2
+
+        layers = []
+        for _ in range(num_layers - 1):
+            layer = torch.nn.Sequential(
+                torch.nn.Conv2d(use_channels, use_channels, 3, padding=1),
+                torch.nn.BatchNorm2d(num_features=use_channels),
+                torch.nn.ELU(inplace=True),
+            )
+            layers.append(layer)
+
+        if self.task_type == "segment":
+            layers.append(torch.nn.Conv2d(
+                use_channels, self.num_outputs, 3, padding=1))
+            # self.loss_func = lambda logits, targets: torch.nn.functional.cross_entropy(
+            #     logits, targets, reduction="none"
+            # )
+
+        elif self.task_type == "bin_segment":
+            layers.append(torch.nn.Conv2d(
+                use_channels, self.num_outputs, 3, padding=1))
+
+            def loss_func(logits, targets):
+                targets = targets.argmax(dim=1)
+                return torch.nn.functional.cross_entropy(
+                    logits, targets, reduction="none"
+                )[:, None, :, :]
+
+            self.loss_func = loss_func
+
+        self.layers = torch.nn.Sequential(*layers)
+
+    def forward(self, raw_features, targets=None):
+        raw_outputs = self.layers(raw_features[0])
+        loss = None
+
+        if self.task_type == "segment":
+            outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
                 task_targets = torch.stack(
                     [target for target in targets], dim=0).long()
-                loss = self.loss_func(raw_outputs, task_targets.float() / 255)
+                loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
 
-        elif self.task_type == "classification":
-            features = torch.amax(raw_outputs, dim=(2, 3))
-            logits = self.extra(features)
-            outputs = torch.nn.functional.softmax(logits, dim=1)
+        elif self.task_type == "bin_segment":
+            outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
                 task_targets = torch.stack(
                     [target for target in targets], dim=0).long()
-                loss = self.loss_func(logits, task_targets)
-                loss = loss.mean()
-
-        elif self.task_type == "multi-label-classification":
-            features = torch.amax(raw_outputs, dim=(2, 3))
-            logits = self.extra(features)
-            outputs = torch.sigmoid(logits)
-
-            if targets is not None:
-                task_targets = torch.stack(
-                    [target for target in targets], dim=0).long()
-                loss = self.loss_func(logits, task_targets)
+                task_targets = task_targets.clamp(0, 2)
+                loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
 
         return outputs, loss

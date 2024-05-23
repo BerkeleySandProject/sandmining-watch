@@ -17,8 +17,11 @@ def optimizer_factory(
             filter(lambda p: p.requires_grad is True, model.parameters()),
             lr=config.learning_rate,
         )
-    elif config.optimizer == OptimizerChoice.SDG:
-        return optim.SGD(model.parameters(), lr=config.learning_rate)
+    elif config.optimizer == OptimizerChoice.SGD:
+        return optim.SGD(
+            filter(lambda p: p.requires_grad is True, model.parameters()),
+            lr=config.learning_rate,
+        )
     else:
         raise ValueError("Optimizer Choice unknown.")
 

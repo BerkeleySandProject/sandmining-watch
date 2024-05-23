@@ -10,7 +10,7 @@ from .utils import (
 )
 from .models.backbone import SwinBackbone
 from .models.fpn import FPN, Upsample
-from .models.heads import SimpleHead
+from .models.heads import SimpleHead, ImprovedHead
 
 import torch.nn.functional as F
 
@@ -175,15 +175,10 @@ class SatlasPretrained(torch.nn.Module):
                 "multi-label-classification", backbone_channels, num_categories
             )
         elif head == Head.SEGMENT:
-            return SimpleHead("segment", backbone_channels, num_categories)
+            # return SimpleHead("segment", backbone_channels, num_categories)
+            return ImprovedHead("segment", backbone_channels, num_categories)
         elif head == Head.BINSEGMENT:
             return SimpleHead("bin_segment", backbone_channels, num_categories)
-        elif head == Head.REGRESS:
-            return SimpleHead("regress", backbone_channels, num_categories)
-        elif head == Head.DETECT:
-            return FRCNNHead("detect", backbone_channels, num_categories)
-        elif head == Head.INSTANCE:
-            return FRCNNHead("instance", backbone_channels, num_categories)
         return None
 
     def forward(self, x, targets=None):

@@ -23,7 +23,7 @@ class ModelChoice(Enum):
 
 class OptimizerChoice(Enum):
     AdamW = "adamw"
-    SDG = "sdg"
+    SGD = "sgd"
 
 
 class SchedulerChoice(Enum):
@@ -101,7 +101,7 @@ class SupervisedFinetuningConfig(SupervisedTrainingConfig):
     smoothing_sigma: Optional[float] = 10.0
     # Only applicable for Satlas
     fpn: Optional[bool] = True
-    head: Optional[Head] = Head.BINSEGMENT
+    head: Optional[Head] = Head.SEGMENT
 
 
 @dataclass

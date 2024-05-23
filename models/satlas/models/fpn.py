@@ -43,9 +43,11 @@ class Upsample(torch.nn.Module):
             next_ch = max(ch // 2, out_channels)
             layer = torch.nn.Sequential(
                 torch.nn.Conv2d(ch, ch, 3, padding=1),
-                torch.nn.ReLU(inplace=True),
+                torch.nn.ELU(inplace=True),
+                # torch.nn.ReLU(inplace=True),
                 torch.nn.ConvTranspose2d(ch, next_ch, 4, stride=2, padding=1),
-                torch.nn.ReLU(inplace=True),
+                torch.nn.ELU(inplace=True),
+                # torch.nn.ReLU(inplace=True),
             )
             layers.append(layer)
             ch = next_ch

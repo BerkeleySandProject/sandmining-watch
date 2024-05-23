@@ -29,6 +29,8 @@ def main(_):
     # gcp_client = storage.Client(project=GCP_PROJECT_NAME)
     from experiment_configs.configs import satlas_swin_base_si_ms_linear_decoder_config
 
+    VALIDATION_CLUSTER_ID = 0
+
     # Configuration
     config = satlas_swin_base_si_ms_linear_decoder_config
 
@@ -52,12 +54,15 @@ def main(_):
     dataset_json = json.load(open(json_abs_path, "r"))
     all_observations = observation_factory(dataset_json)
 
+    # ipdb.set_trace()
+    # DEBUG: Check loaded observation sets
+
     training_scenes = []
     validation_scenes = []
 
     for observation in all_observations:
         if (
-            observation.cluster_id == 0
+            observation.cluster_id == VALIDATION_CLUSTER_ID
         ):  # statically assign clusetr zero to validation set
             validation_scenes.append(observation_to_scene(config, observation))
         else:
@@ -106,11 +111,11 @@ def main(_):
 
     # Run this if you want to log the run to weights and biases
     learner.initialize_wandb_run()
-    learner.train(epochs=10)
+    learner.train(epochs=50)
 
     def evaluate():
         # Evaluate
-        ipdb.set_trace()
+        # ipdb.set_trace()
         # DEBUG: Check successful training before evaluation
         from ml.learner import BinarySegmentationPredictor, MultiSegmentationLearner
         from utils.rastervision_pipeline import scene_to_inference_ds
@@ -124,7 +129,7 @@ def main(_):
         all_observations = observation_factory(dataset_json)
         for observation in all_observations:
             if (
-                observation.cluster_id == 0
+                observation.cluster_id == VALIDATION_CLUSTER_ID
             ):  # statically assign clusetr zero to validation set
                 evaluation_datasets.append(
                     scene_to_inference_ds(

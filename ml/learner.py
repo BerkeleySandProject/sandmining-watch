@@ -101,8 +101,7 @@ class Learner(ABC):
         load_model_weights=False,
     ):
         self.config = config
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.train_ds = train_ds
         self.valid_ds = valid_ds
@@ -121,12 +120,12 @@ class Learner(ABC):
 
         self.output_dir = output_dir
         if self.output_dir:
+            # ipdb.set_trace()
+            # DEBUG: Check output dir is at the right place
             make_dir(self.output_dir)
-            self.best_model_weights_path = join(
-                self.output_dir, "best-model.pth")
+            self.best_model_weights_path = join(self.output_dir, "best-model.pth")
             self.best_average_precision_score = 0
-            self.last_model_weights_path = join(
-                self.output_dir, "last-model.pth")
+            self.last_model_weights_path = join(self.output_dir, "last-model.pth")
         else:
             self.best_model_weights_path = None
             self.best_average_precision_score = None
@@ -273,7 +272,10 @@ class Learner(ABC):
         # DEBUG: Check forward pass and loss calculation
         # x, y, w = batch
         x, y = batch
-        out = self.post_forward(self.model(x))
+        out = self.model(x)
+        print("Number of unique probability outputs per class: ", len(out.unique()))
+        # DEBUG: Check that model output probs for each class is changing
+        out = self.post_forward(out)
 
         # In the following, we hardcoded our metric names for our loss functions
 
@@ -288,9 +290,12 @@ class Learner(ABC):
     def validate_step(self, batch, batch_ind):
         # x, y, w = batch
         x, y = batch
-        out = self.post_forward(self.model(x))
-        out_probabilities = torch.sigmoid(out)
+        out = self.model(x)
+        # DEBUG: Why is the validation only producing two probabilities?
+        print("Number of output probabilities validation: ", len(out.unique()))
 
+        out = self.post_forward(out)
+        out_probabilities = torch.sigmoid(out)
         return {
             **self.calculate_losses(out, y, "val_"),
             "out_probabilities": out_probabilities.view(-1),
@@ -304,10 +309,12 @@ class Learner(ABC):
             outputs: a list of outputs of train_step
             num_samples: total number of training samples processed in epoch
         """
+        # ipdb.set_trace()
+        # DEBUG: Check outputs
+
         metrics = {}
         for k in outputs[0].keys():
-            metrics[k] = torch.stack(
-                [o[k] for o in outputs]).sum().item() / num_samples
+            metrics[k] = torch.stack([o[k] for o in outputs]).sum().item() / num_samples
         return metrics
 
     def plot_dataloader(
@@ -356,8 +363,7 @@ class Learner(ABC):
         if weights_path and isfile(weights_path):
             log.info(f"Loading weights from {weights_path}")
             self.model.load_state_dict(
-                torch.load(self.last_model_weights_path,
-                           map_location=self.device)
+                torch.load(self.last_model_weights_path, map_location=self.device)
             )
 
     def to_device(self, x: Any, device: str) -> Any:
@@ -502,8 +508,7 @@ class Learner(ABC):
             else:
                 config_to_log[key] = val
 
-        n_weights_total, n_weights_trainable = count_number_of_weights(
-            self.model)
+        n_weights_total, n_weights_trainable = count_number_of_weights(self.model)
         config_to_log.update(
             {
                 "Size training dataset": len(self.train_ds),
@@ -597,8 +602,7 @@ class BinarySegmentationLearner(Learner):
         else:
             return {
                 "bce_loss": nn.BCEWithLogitsLoss(
-                    pos_weight=torch.as_tensor(
-                        self.config.mine_class_loss_weight)
+                    pos_weight=torch.as_tensor(self.config.mine_class_loss_weight)
                 ),
                 "dice_loss": DiceLoss(),
             }
@@ -720,6 +724,9 @@ class MultiSegmentationLearner(Learner):
         # outputs is a list of dictionaries.
         # Each element in the list corresponds to outputs from one validation batch
 
+        # ipdb.set_trace()
+
+        # DEBUG: Check validate_end
         def concat_values(key):
             return torch.cat([o[key] for o in outputs])
 
@@ -761,6 +768,8 @@ class MultiSegmentationLearner(Learner):
         predicted_classes[predicted_classes == 2] = 1
         ground_truths[ground_truths == 2] = 1  # ""
 
+        # ipdb.set_trace()
+        # DEBUG: Check metrics being computed
         _, _, _, average_precision, best_threshold, best_f1_score = compute_metrics(
             ground_truths.cpu().numpy(),
             high_conf_probs.cpu().numpy(),
@@ -803,8 +812,7 @@ class Predictor(ABC):
         temperature: float = None,
     ):
         self.config = config
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = model
         self.model.to(device=self.device)
@@ -812,8 +820,7 @@ class Predictor(ABC):
         if path_to_weights:  # only load decoder weightss
             self.model.load_decoder_weights(path_to_weights)
             if path_to_lora:
-                self.model = PeftModel.from_pretrained(
-                    self.model, path_to_lora)
+                self.model = PeftModel.from_pretrained(self.model, path_to_lora)
 
         self.class_names = self.get_class_names()
         self.num_workers = 0  # 0 means no multiprocessing
@@ -826,8 +833,7 @@ class Predictor(ABC):
             print("Temperature scaling set to None")
         else:
             print(
-                "Predictor has a calibration temperature of {}".format(
-                    self.temperature)
+                "Predictor has a calibration temperature of {}".format(self.temperature)
             )
 
     def predict_dataset(
