@@ -52,31 +52,42 @@ def main(_):
     )  # Combine root directory with the relative path
 
     dataset_json = json.load(open(json_abs_path, "r"))
-    all_observations = observation_factory(dataset_json)
+    all_scenes = [
+        observation_to_scene(config, observation)
+        for i, observation in enumerate(observation_factory(dataset_json))
+    ]
+    cluster_ids = [
+        observation.cluster_id
+        for i, observation in enumerate(observation_factory(dataset_json))
+    ]
 
-    # ipdb.set_trace()
-    # DEBUG: Check loaded observation sets
+    val_cluster_id = 9
 
-    training_scenes = []
-    validation_scenes = []
-
-    for observation in all_observations:
-        if (
-            observation.cluster_id == VALIDATION_CLUSTER_ID
-        ):  # statically assign clusetr zero to validation set
-            validation_scenes.append(observation_to_scene(config, observation))
-        else:
-            training_scenes.append(observation_to_scene(config, observation))
+    val_cluster_id = np.unique(cluster_ids).max() + 1
+    for cid in np.unique(cluster_ids):
+        scene_idx = [i for i in range(len(cluster_ids)) if cluster_ids[i] == cid]
+        val_idx = random.sample(scene_idx, 1)[0]
+        cluster_ids[val_idx] = val_cluster_id
 
     training_datasets = [
         scene_to_training_ds(config, scene)
-        for scene in training_scenes  # random window sampling happens here
+        for scene, cid in zip(all_scenes, cluster_ids)
+        if cid != val_cluster_id
     ]
     validation_datasets = [
-        scene_to_validation_ds(config, scene) for scene in validation_scenes
+        scene_to_inference_ds(
+            config, scene, full_image=False, stride=int(config.tile_size / 2)
+        )
+        for scene, cid in zip(all_scenes, cluster_ids)
+        if cid == val_cluster_id
     ]
 
-    # ipdb.set_trace()
+    from torch.utils.data import ConcatDataset
+
+    train_dataset_merged = ConcatDataset(training_datasets)
+    val_dataset_merged = ConcatDataset(validation_datasets)
+
+    ipdb.set_trace()
     # DEBUG: Check training and validation datasets
     train_dataset_merged = ConcatDataset(training_datasets)
     val_dataset_merged = ConcatDataset(validation_datasets)
@@ -111,7 +122,7 @@ def main(_):
 
     # Run this if you want to log the run to weights and biases
     learner.initialize_wandb_run()
-    learner.train(epochs=50)
+    learner.train(epochs=10)
 
     def evaluate():
         # Evaluate
@@ -134,8 +145,7 @@ def main(_):
                 evaluation_datasets.append(
                     scene_to_inference_ds(
                         config,
-                        observation_to_scene(
-                            config, observation, weights_class=False),
+                        observation_to_scene(config, observation, weights_class=False),
                         full_image=True,
                     )
                 )
@@ -175,8 +185,7 @@ def main(_):
                 }
             )
 
-        evaluation_results_dict = evaluate_predicitions(
-            prediction_results_list)
+        evaluation_results_dict = evaluate_predicitions(prediction_results_list)
 
         assert wandb.run is not None
 
