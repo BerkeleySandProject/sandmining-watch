@@ -545,9 +545,9 @@ class BinarySegmentationLearner(Learner):
         out_probabilities = concat_values("out_probabilities")
         ground_truths = concat_values("ground_truth")
         stacked_losses = {
-            f"val_{loss_fn_name}": stack_values(f"val_{loss_fn_name}") 
+            loss_fn_name: stack_values(loss_fn_name) 
             for loss_fn_name in outputs[0].keys() 
-            if loss_fn_name in list(self.loss_functions.keys())
+            if loss_fn_name[4:] in list(self.loss_functions.keys())
         }
 
         if isinstance(self.config, ThreeClassConfig) and self.config.three_class_training_method == ThreeClassVariants.A:
@@ -629,9 +629,9 @@ class MultiSegmentationLearner(Learner):
         out_probabilities = concat_values("out_probabilities")
         ground_truths = concat_values("ground_truth")
         stacked_losses = {
-            f"val_{loss_fn_name}": stack_values(f"val_{loss_fn_name}") 
+            loss_fn_name: stack_values(loss_fn_name) 
             for loss_fn_name in outputs[0].keys() 
-            if loss_fn_name in list(self.loss_functions.keys())
+            if loss_fn_name[4:] in list(self.loss_functions.keys())
         }
 
         out_classes =  self.prob_to_pred(out_probabilities.view(num_samples, 3, self.config.tile_size, self.config.tile_size)).reshape(-1)
