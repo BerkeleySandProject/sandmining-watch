@@ -268,8 +268,8 @@ class Learner(ABC):
         return metric_names
 
     def train_step(self, batch, batch_ind):
-        # ipdb.set_trace()
         # DEBUG: Check forward pass and loss calculation
+        # DEBUG: Check that input values are between 0 and 1
         # x, y, w = batch
         x, y = batch
         out = self.model(x)
@@ -297,7 +297,7 @@ class Learner(ABC):
         out = self.post_forward(out)
         out_probabilities = torch.sigmoid(out)
         return {
-            **self.calculate_losses(out, y, "val_"),
+            **self.calculate_losses(out, y.long(), "val_"),
             "out_probabilities": out_probabilities.view(-1),
             "ground_truth": y.int().view(-1),
         }
@@ -392,7 +392,6 @@ class Learner(ABC):
         self.model.train()
         num_samples = 0
         outputs = []
-        import ipdb
 
         with tqdm(self.train_dl, desc="Training") as bar:
             for batch_ind, (x, y) in enumerate(bar):
@@ -675,6 +674,8 @@ class BinarySegmentationLearner(Learner):
         """
         if isinstance(x, dict):
             x = x["out"]
+        if x.shape[1] == 3:
+            return x.argmax(dim=1)
         # Squeeze to remove the n_classes dimension (since it is size 1)
         # From batch_size x n_classes x width x height
         # To batch_size x width x height
@@ -696,7 +697,7 @@ class MultiSegmentationLearner(Learner):
                 weight=self.to_device(
                     torch.tensor(
                         [
-                            1.0,
+                            self.config.nonmine_class_weight,
                             self.config.low_confidence_weight,
                             self.config.mine_class_loss_weight,
                         ]

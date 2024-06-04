@@ -650,58 +650,6 @@
         "date": "2021-12-01"
     },
     {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/s1/Narmada_Sehore_77-31_22-6_2021-11-01_s1.tif",
-        "uri_to_s2": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/s2/Narmada_Sehore_77-31_22-6_2021-11-01_s2.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/s2_l1c/Narmada_Sehore_77-31_22-6_2021-11-01_s2_l1c.tif",
-        "uri_to_rgb": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/rgb/Narmada_Sehore_77-31_22-6_2021-11-01_rgb.tif",
-        "uri_to_annotations": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/annotations/Narmada_Sehore_77-31_22-6_2021-11-01_annotations_3class.geojson",
-        "uri_to_rivers": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/rivers/Narmada_Sehore_77-31_22-6_rivers_1000m.geojson",
-        "name": "Narmada_Sehore_77-31_22-6_2021-11-01",
-        "cluster_id": 1,
-        "latitude": 22.06,
-        "longitude": 77.31,
-        "date": "2021-11-01"
-    },
-    {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/s1/Narmada_Sehore_77-31_22-6_2019-03-01_s1.tif",
-        "uri_to_s2": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/s2/Narmada_Sehore_77-31_22-6_2019-03-01_s2.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/s2_l1c/Narmada_Sehore_77-31_22-6_2019-03-01_s2_l1c.tif",
-        "uri_to_rgb": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/rgb/Narmada_Sehore_77-31_22-6_2019-03-01_rgb.tif",
-        "uri_to_annotations": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/annotations/Narmada_Sehore_77-31_22-6_2019-03-01_annotations_3class.geojson",
-        "uri_to_rivers": "https://storage.googleapis.com/sand_mining_median/labels/Narmada_Sehore_77-31_22-6_median/rivers/Narmada_Sehore_77-31_22-6_rivers_1000m.geojson",
-        "name": "Narmada_Sehore_77-31_22-6_2019-03-01",
-        "cluster_id": 9,
-        "latitude": 22.06,
-        "longitude": 77.31,
-        "date": "2019-03-01"
-    },
-    {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/s1/Ken_Banda_80-36_25-71_2022-03-01_s1.tif",
-        "uri_to_s2": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/s2/Ken_Banda_80-36_25-71_2022-03-01_s2.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/s2_l1c/Ken_Banda_80-36_25-71_2022-03-01_s2_l1c.tif",
-        "uri_to_rgb": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/rgb/Ken_Banda_80-36_25-71_2022-03-01_rgb.tif",
-        "uri_to_annotations": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/annotations/Ken_Banda_80-36_25-71_2022-03-01_annotations_3class.geojson",
-        "uri_to_rivers": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/rivers/Ken_Banda_80-36_25-71_rivers_1000m.geojson",
-        "name": "Ken_Banda_80-36_25-71_2022-03-01",
-        "cluster_id": 5,
-        "latitude": 25.71,
-        "longitude": 80.36,
-        "date": "2022-03-01"
-    },
-    {
-        "uri_to_s1": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/s1/Ken_Banda_80-36_25-71_2021-04-01_s1.tif",
-        "uri_to_s2": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/s2/Ken_Banda_80-36_25-71_2021-04-01_s2.tif",
-        "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/s2_l1c/Ken_Banda_80-36_25-71_2021-04-01_s2_l1c.tif",
-        "uri_to_rgb": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/rgb/Ken_Banda_80-36_25-71_2021-04-01_rgb.tif",
-        "uri_to_annotations": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/annotations/Ken_Banda_80-36_25-71_2021-04-01_annotations_3class.geojson",
-        "uri_to_rivers": "https://storage.googleapis.com/sand_mining_median/labels/Ken_Banda_80-36_25-71_median/rivers/Ken_Banda_80-36_25-71_rivers_1000m.geojson",
-        "name": "Ken_Banda_80-36_25-71_2021-04-01",
-        "cluster_id": 5,
-        "latitude": 25.71,
-        "longitude": 80.36,
-        "date": "2021-04-01"
-    },
-    {
         "uri_to_s1": "https://storage.googleapis.com/sand_mining_median/labels/Chambal_More_77-84_26-58_median/s1/Chambal_More_77-84_26-58_2018-12-01_s1.tif",
         "uri_to_s2": "https://storage.googleapis.com/sand_mining_median/labels/Chambal_More_77-84_26-58_median/s2/Chambal_More_77-84_26-58_2018-12-01_s2.tif",
         "uri_to_s2_l1c": "https://storage.googleapis.com/sand_mining_median/labels/Chambal_More_77-84_26-58_median/s2_l1c/Chambal_More_77-84_26-58_2018-12-01_s2_l1c.tif",

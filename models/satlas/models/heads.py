@@ -38,8 +38,7 @@ class FRCNNHead(torch.nn.Module):
         self.task_type = task
         self.use_layers = list(range(len(backbone_channels)))
         num_channels = backbone_channels[self.use_layers[0]][1]
-        featmap_names = ["feat{}".format(i)
-                         for i in range(len(self.use_layers))]
+        featmap_names = ["feat{}".format(i) for i in range(len(self.use_layers))]
         num_classes = num_categories
 
         self.noop_transform = NoopTransform()
@@ -159,7 +158,7 @@ class SimpleHead(torch.nn.Module):
         num_layers = 2
         self.num_outputs = num_categories
         if self.num_outputs is None:
-            if task_type == "regress":
+            if self.task_type == "regress":
                 self.num_outputs = 1
             else:
                 self.num_outputs = 2
@@ -173,15 +172,13 @@ class SimpleHead(torch.nn.Module):
             layers.append(layer)
 
         if self.task_type == "segment":
-            layers.append(torch.nn.Conv2d(
-                use_channels, self.num_outputs, 3, padding=1))
+            layers.append(torch.nn.Conv2d(use_channels, self.num_outputs, 3, padding=1))
             # self.loss_func = lambda logits, targets: torch.nn.functional.cross_entropy(
             #     logits, targets, reduction="none"
             # )
 
         elif self.task_type == "bin_segment":
-            layers.append(torch.nn.Conv2d(
-                use_channels, self.num_outputs, 3, padding=1))
+            layers.append(torch.nn.Conv2d(use_channels, self.num_outputs, 3, padding=1))
 
             def loss_func(logits, targets):
                 targets = targets.argmax(dim=1)
@@ -201,8 +198,7 @@ class SimpleHead(torch.nn.Module):
             outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
-                task_targets = torch.stack(
-                    [target for target in targets], dim=0).long()
+                task_targets = torch.stack([target for target in targets], dim=0).long()
                 loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
 
@@ -210,8 +206,7 @@ class SimpleHead(torch.nn.Module):
             outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
-                task_targets = torch.stack(
-                    [target for target in targets], dim=0).long()
+                task_targets = torch.stack([target for target in targets], dim=0).long()
                 task_targets = task_targets.clamp(0, 2)
                 loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
@@ -229,7 +224,7 @@ class ImprovedHead(torch.nn.Module):
         num_layers = 2
         self.num_outputs = num_categories
         if self.num_outputs is None:
-            if task_type == "regress":
+            if self.task_type == "regress":
                 self.num_outputs = 1
             else:
                 self.num_outputs = 2
@@ -239,20 +234,18 @@ class ImprovedHead(torch.nn.Module):
             layer = torch.nn.Sequential(
                 torch.nn.Conv2d(use_channels, use_channels, 3, padding=1),
                 torch.nn.BatchNorm2d(num_features=use_channels),
-                torch.nn.ELU(inplace=True),
+                torch.nn.ReLU(inplace=True),
             )
             layers.append(layer)
 
         if self.task_type == "segment":
-            layers.append(torch.nn.Conv2d(
-                use_channels, self.num_outputs, 3, padding=1))
+            layers.append(torch.nn.Conv2d(use_channels, self.num_outputs, 3, padding=1))
             # self.loss_func = lambda logits, targets: torch.nn.functional.cross_entropy(
             #     logits, targets, reduction="none"
             # )
 
         elif self.task_type == "bin_segment":
-            layers.append(torch.nn.Conv2d(
-                use_channels, self.num_outputs, 3, padding=1))
+            layers.append(torch.nn.Conv2d(use_channels, self.num_outputs, 3, padding=1))
 
             def loss_func(logits, targets):
                 targets = targets.argmax(dim=1)
@@ -272,8 +265,7 @@ class ImprovedHead(torch.nn.Module):
             outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
-                task_targets = torch.stack(
-                    [target for target in targets], dim=0).long()
+                task_targets = torch.stack([target for target in targets], dim=0).long()
                 loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()
 
@@ -281,8 +273,7 @@ class ImprovedHead(torch.nn.Module):
             outputs = torch.nn.functional.softmax(raw_outputs, dim=1)
 
             if targets is not None:
-                task_targets = torch.stack(
-                    [target for target in targets], dim=0).long()
+                task_targets = torch.stack([target for target in targets], dim=0).long()
                 task_targets = task_targets.clamp(0, 2)
                 loss = self.loss_func(raw_outputs, task_targets)
                 loss = loss.mean()

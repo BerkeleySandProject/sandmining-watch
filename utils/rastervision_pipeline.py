@@ -77,6 +77,8 @@ class GoogleCloudFileSystem(HttpFileSystem):
         src_file_path = "/".join(parsed_uri.path.split("/")[2:])
         bucket = GoogleCloudFileSystem.storage_client.get_bucket(bucket_name)
         blob = bucket.get_blob(src_file_path)
+        if blob is None:
+            raise Exception("Blob is none")
         blob.download_to_filename(dst_path)
 
 
@@ -277,7 +279,7 @@ def sliding_filter_by_aoi(
 
 
 def scene_to_validation_ds(config, scene: Scene):
-    # No augementation and windows don't overlap. Use for validation during training time.
+    # No augmentation and windows don't overlap. Use for validation during training time.
     ds = SemanticSegmentationSlidingWindowGeoDatasetCustom(
         scene=scene,
         ignore_aoi=False,  # Filter windows by AOI
@@ -348,7 +350,10 @@ def custom_sample_window(self) -> Box:
 
 
 def scene_to_training_ds(
-    config: SupervisedTrainingConfig, scene: Scene, aoi_centroids=True
+    config: SupervisedTrainingConfig,
+    scene: Scene,
+    aoi_centroids=True,
+    n_windows: int = 10,
 ):
     """
     Returns a dataset for training. The dataset will sample windows from the scene in a random fashion.
@@ -360,9 +365,9 @@ def scene_to_training_ds(
     for aoi in scene.aoi_polygons:
         aoi_area += aoi.area
 
-    n_windows = int(np.ceil(aoi_area / config.tile_size**2)) * 4
-    # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
-    n_windows = 10
+    # n_windows = int(np.ceil(aoi_area / config.tile_size**2)) * 4
+    # # n_windows = ceil(n_pixels_in_scene / config.tile_size ** 2)
+    # n_windows = 10
     ds = SemanticSegmentationRandomWindowGeoDataset(
         scene,
         out_size=(config.tile_size, config.tile_size),
@@ -549,8 +554,8 @@ class SemanticSegmentationSlidingWindowGeoDatasetCustom(
     SemanticSegmentationSlidingWindowGeoDataset
 ):
     """
-    The default SemanticSegmentationSlidingWindowGeoDataset requires windows to lie complement within in
-    the AOI. This laternative relaxes the conditation. Windows are accepted which has an overlap with the AOI
+    The default SemanticSegmentationSlidingWindowGeoDataset requires windows to lie complement within
+    the AOI. This alternative relaxes the condition. Windows are accepted which have an overlap with the AOI
 
     An additional parameter allows to ignore to AOI and sample windows across the entire image.
     """

@@ -11,9 +11,10 @@ from torch.utils.data import ConcatDataset
 import json
 import ipdb
 import wandb
+import numpy as np
+import random
 
 sys.path.insert(0, os.path.abspath(".."))
-
 
 __author__ = "Sushant Harischandra Vema"
 __version__ = "0.1.0"
@@ -23,13 +24,23 @@ load_dotenv()
 
 
 def main(_):
-    # from project_config import GCP_PROJECT_NAME
+    from project_config import GCP_PROJECT_NAME
     from project_config import DATASET_JSON_PATH
+    from project_config import NUM_EPOCHS
 
-    # gcp_client = storage.Client(project=GCP_PROJECT_NAME)
+    gcp_client = storage.Client(project=GCP_PROJECT_NAME)
+    from utils.rastervision_pipeline import GoogleCloudFileSystem
+
+    GoogleCloudFileSystem.storage_client = gcp_client
     from experiment_configs.configs import satlas_swin_base_si_ms_linear_decoder_config
+    from ml.learner_factory import learner_factory
+    import torch
 
-    VALIDATION_CLUSTER_ID = 0
+    # For reproducibility
+    seed = 42
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 
     # Configuration
     config = satlas_swin_base_si_ms_linear_decoder_config
@@ -39,9 +50,10 @@ def main(_):
         observation_to_scene,
         scene_to_training_ds,
         scene_to_validation_ds,
+        scene_to_inference_ds,
         warn_if_nan_in_raw_raster,
     )
-    from utils.data_management import observation_factory
+    from utils.data_management import observation_factory, characterize_dataset
 
     root_dir = os.getcwd()  # get the current working directory
     json_rel_path = (
@@ -61,43 +73,52 @@ def main(_):
         for i, observation in enumerate(observation_factory(dataset_json))
     ]
 
-    val_cluster_id = 9
-
-    val_cluster_id = np.unique(cluster_ids).max() + 1
+    VALIDATION_CLUSTER_ID = 9
     for cid in np.unique(cluster_ids):
         scene_idx = [i for i in range(len(cluster_ids)) if cluster_ids[i] == cid]
         val_idx = random.sample(scene_idx, 1)[0]
-        cluster_ids[val_idx] = val_cluster_id
+        cluster_ids[val_idx] = VALIDATION_CLUSTER_ID
 
-    training_datasets = [
-        scene_to_training_ds(config, scene)
+    training_scenes = [
+        scene_to_training_ds(config, scene, n_windows=200)
         for scene, cid in zip(all_scenes, cluster_ids)
-        if cid != val_cluster_id
+        if cid != VALIDATION_CLUSTER_ID
     ]
-    validation_datasets = [
-        scene_to_inference_ds(
-            config, scene, full_image=False, stride=int(config.tile_size / 2)
-        )
+    # validation_datasets = [
+    #     scene_to_inference_ds(
+    #         # According to Ando's inference strategy page
+    #         config,
+    #         scene,
+    #         full_image=False,
+    #         stride=int(config.tile_size - 60),
+    #     )
+    #     for scene, cid in zip(all_scenes, cluster_ids)
+    #     if cid == VALIDATION_CLUSTER_ID
+    # ]
+    #
+    validation_scenes = [
+        scene_to_validation_ds(config, scene)
         for scene, cid in zip(all_scenes, cluster_ids)
-        if cid == val_cluster_id
+        if cid == VALIDATION_CLUSTER_ID
     ]
-
-    from torch.utils.data import ConcatDataset
-
-    train_dataset_merged = ConcatDataset(training_datasets)
-    val_dataset_merged = ConcatDataset(validation_datasets)
 
     ipdb.set_trace()
+    train_dataset_merged = ConcatDataset(training_scenes)
+    val_dataset_merged = ConcatDataset(validation_scenes)
+
     # DEBUG: Check training and validation datasets
-    train_dataset_merged = ConcatDataset(training_datasets)
-    val_dataset_merged = ConcatDataset(validation_datasets)
+    train_dataset_merged = ConcatDataset(training_scenes)
+    val_dataset_merged = ConcatDataset(validation_scenes)
+
+    mine_percentage_aoi = characterize_dataset(training_scenes, validation_scenes)
 
     # Train
-    from models.model_factory import model_factory
+    from models.model_factory import model_factory, print_trainable_parameters
     from ml.optimizer_factory import optimizer_factory
     from ml.learner import BinarySegmentationLearner, MultiSegmentationLearner
+    from utils.rastervision_pipeline import scene_to_inference_ds
 
-    _, _, n_channels = training_datasets[0].scene.raster_source.shape
+    _, _, n_channels = training_scenes[0].scene.raster_source.shape
 
     model = model_factory(
         config,
@@ -106,7 +127,7 @@ def main(_):
 
     optimizer = optimizer_factory(config, model)
 
-    learner = MultiSegmentationLearner(
+    learner = learner_factory(
         config=config,
         model=model,
         optimizer=optimizer,
@@ -114,15 +135,17 @@ def main(_):
         train_ds=train_dataset_merged,
         # for development and debugging, use training_datasets[1] or similar to speed up
         valid_ds=val_dataset_merged,
-        output_dir=("~/sandmining-watch/out/satlas"),
+        output_dir=("~/sandmining-watch/out/satlas/TestSpatialRandom"),
         save_model_checkpoints=True,
     )
+
+    print_trainable_parameters(learner.model)
 
     learner.log_data_stats()
 
     # Run this if you want to log the run to weights and biases
     learner.initialize_wandb_run()
-    learner.train(epochs=10)
+    learner.train(epochs=NUM_EPOCHS)
 
     def evaluate():
         # Evaluate
@@ -209,19 +232,19 @@ def main(_):
     wandb.finish
 
 
-def visualize():
-    from utils.visualizing import visualize_dataset
-    import torch
-
-    # for ds in training_datasets:
-    #       visualize_dataset(ds)
-    torch.manual_seed(42)
-    visualize_dataset([training_datasets[0]])
-
-    # for ds in validation_datasets:
-    #     visualize_dataset(ds)
-    return
-
+# def visualize():
+#     from utils.visualizing import visualize_dataset
+#     import torch
+#
+#     # for ds in training_datasets:
+#     #       visualize_dataset(ds)
+#     torch.manual_seed(42)
+#     visualize_dataset([training_datasets[0]])
+#
+#     # for ds in validation_datasets:
+#     #     visualize_dataset(ds)
+#     return
+#
 
 if __name__ == "__main__":
     # Required positional argument

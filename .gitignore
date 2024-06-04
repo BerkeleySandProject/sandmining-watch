@@ -174,3 +174,4 @@ wandb
 
 sushant-notes/
 *.virtual_documents
+*.ipynb_checkpoints
