@@ -445,12 +445,13 @@ class Learner(ABC):
         )
         return config_to_log
     
-    def initialize_wandb_run(self, run_name=None, group=None, notes="", resume=False):
+    def initialize_wandb_run(self, project=WANDB_PROJECT_NAME,run_name=None, group=None, notes="", resume=False):
         wandb.init(
-            project=WANDB_PROJECT_NAME,
+            project=project,
             config=self.get_config_dict_for_wandb_log(),
             name=run_name,
             group=group,
+            entity="sandmining-watch",
             notes=notes,
             resume=resume,
         )
