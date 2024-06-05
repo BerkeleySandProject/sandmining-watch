@@ -56,7 +56,7 @@ BUCKET_NAME = "sand_mining_median"
 BUCKET_NAME = "sand_mining_test"
 
 # Weight and Biases
-WANDB_PROJECT_NAME = "sandmine_satlas_spatially_random"
+WANDB_PROJECT_NAME = "DS-v03"
 
 # To use river AOIs set this to TRUE
 USE_RIVER_AOIS = True

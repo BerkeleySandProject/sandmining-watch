@@ -283,15 +283,15 @@ satlas_swin_base_si_ms_linear_decoder_config = ThreeClassFineTuningConfig(
 # )
 #
 #
-# # LoRA Configs
-# # Refer to https://huggingface.co/docs/peft/conceptual_guides/lora
-# lora_config = LoraConfig(
-#     r=16,
-#     lora_alpha=16,
-#     target_modules=["qkv"],
-#     lora_dropout=0.1,
-#     # bias="none",
-#     bias="lora_only",
-#     # modules_to_save: List of modules apart from LoRA layers to be set as trainable and saved in the final checkpoint. These typically include model’s custom head that is randomly initialized for the fine-tuning task.
-#     modules_to_save=["decoder"],
-# )
+# LoRA Configs
+# Refer to https://huggingface.co/docs/peft/conceptual_guides/lora
+lora_config = LoraConfig(
+    r=16,
+    lora_alpha=16,
+    target_modules=["qkv"],
+    lora_dropout=0.1,
+    # bias="none",
+    bias="lora_only",
+    # modules_to_save: List of modules apart from LoRA layers to be set as trainable and saved in the final checkpoint. These typically include model’s custom head that is randomly initialized for the fine-tuning task.
+    modules_to_save=["decoder"],
+)
