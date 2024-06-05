@@ -115,6 +115,7 @@ def main(_):
     # Train
     from models.model_factory import model_factory, print_trainable_parameters
     from ml.optimizer_factory import optimizer_factory
+    from ml.model_stats import count_number_of_weights
     from ml.learner import BinarySegmentationLearner, MultiSegmentationLearner
     from utils.rastervision_pipeline import scene_to_inference_ds
 
@@ -124,6 +125,16 @@ def main(_):
         config,
         n_channels=n_channels,
     )
+
+    print("Before LoRA: ")
+    all_params, trainable_params = count_number_of_weights(model)
+    print(
+        f"trainable_params: {trainable_params/1e6}M | | all params: {all_params/1e6}M | | trainable %: {100 * trainable_params // all_params: .2f}"
+    )
+
+    from peft import LoraConfig, get_peft_model
+
+    model = get_peft_model(model, LoraConfig)
 
     optimizer = optimizer_factory(config, model)
 
@@ -135,7 +146,7 @@ def main(_):
         train_ds=train_dataset_merged,
         # for development and debugging, use training_datasets[1] or similar to speed up
         valid_ds=val_dataset_merged,
-        output_dir=("~/sandmining-watch/out/satlas/TestSpatialRandom"),
+        output_dir=("~/sandmining-watch/out/OUTPUT_DIR/satlas_spatial_random_lora"),
         save_model_checkpoints=True,
     )
 
