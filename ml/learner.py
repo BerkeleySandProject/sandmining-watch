@@ -101,8 +101,7 @@ class Learner(ABC):
         load_model_weights=False,
     ):
         self.config = config
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.train_ds = train_ds
         self.valid_ds = valid_ds
@@ -124,11 +123,9 @@ class Learner(ABC):
             # ipdb.set_trace()
             # DEBUG: Check output dir is at the right place
             make_dir(self.output_dir)
-            self.best_model_weights_path = join(
-                self.output_dir, "best-model.pth")
+            self.best_model_weights_path = join(self.output_dir, "best-model.pth")
             self.best_average_precision_score = 0
-            self.last_model_weights_path = join(
-                self.output_dir, "last-model.pth")
+            self.last_model_weights_path = join(self.output_dir, "last-model.pth")
         else:
             self.best_model_weights_path = None
             self.best_average_precision_score = None
@@ -283,7 +280,7 @@ class Learner(ABC):
 
         # In the following, we hardcoded our metric names for our loss functions
 
-        return self.calculate_losses(out, y.long(), "train_")
+        return self.calculate_losses(out.float(), y.float(), "train_")
 
     def calculate_losses(self, out, y, prefix=""):
         return {
@@ -318,8 +315,7 @@ class Learner(ABC):
 
         metrics = {}
         for k in outputs[0].keys():
-            metrics[k] = torch.stack(
-                [o[k] for o in outputs]).sum().item() / num_samples
+            metrics[k] = torch.stack([o[k] for o in outputs]).sum().item() / num_samples
         return metrics
 
     def plot_dataloader(
@@ -368,8 +364,7 @@ class Learner(ABC):
         if weights_path and isfile(weights_path):
             log.info(f"Loading weights from {weights_path}")
             self.model.load_state_dict(
-                torch.load(self.last_model_weights_path,
-                           map_location=self.device)
+                torch.load(self.last_model_weights_path, map_location=self.device)
             )
 
     def to_device(self, x: Any, device: str) -> Any:
@@ -513,8 +508,7 @@ class Learner(ABC):
             else:
                 config_to_log[key] = val
 
-        n_weights_total, n_weights_trainable = count_number_of_weights(
-            self.model)
+        n_weights_total, n_weights_trainable = count_number_of_weights(self.model)
         config_to_log.update(
             {
                 "Size training dataset": len(self.train_ds),
@@ -608,8 +602,7 @@ class BinarySegmentationLearner(Learner):
         else:
             return {
                 "bce_loss": nn.BCEWithLogitsLoss(
-                    pos_weight=torch.as_tensor(
-                        self.config.mine_class_loss_weight)
+                    pos_weight=torch.as_tensor(self.config.mine_class_loss_weight)
                 ),
                 "dice_loss": DiceLoss(),
             }
@@ -821,8 +814,7 @@ class Predictor(ABC):
         temperature: float = None,
     ):
         self.config = config
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = model
         self.model.to(device=self.device)
@@ -830,8 +822,7 @@ class Predictor(ABC):
         if path_to_weights:  # only load decoder weightss
             self.model.load_decoder_weights(path_to_weights)
             if path_to_lora:
-                self.model = PeftModel.from_pretrained(
-                    self.model, path_to_lora)
+                self.model = PeftModel.from_pretrained(self.model, path_to_lora)
 
         self.class_names = self.get_class_names()
         self.num_workers = 0  # 0 means no multiprocessing
@@ -844,8 +835,7 @@ class Predictor(ABC):
             print("Temperature scaling set to None")
         else:
             print(
-                "Predictor has a calibration temperature of {}".format(
-                    self.temperature)
+                "Predictor has a calibration temperature of {}".format(self.temperature)
             )
 
     def predict_dataset(
