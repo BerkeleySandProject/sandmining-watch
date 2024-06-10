@@ -53,7 +53,7 @@ HARD_LABELS = True
 GCP_PROJECT_NAME = "gee-sand"
 BUCKET_NAME = "sand_mining_median"
 
-BUCKET_NAME = "sand_mining_test"
+# BUCKET_NAME = "sand_mining_test"
 
 # Weight and Biases
 WANDB_PROJECT_NAME = "DS-v03"
@@ -69,11 +69,13 @@ RIVER_BUFFER_M = "1000m"
 # e.g. annotations_json_v0.1_2021-04-08.json
 
 # DATASET_JSON_PATH = 'dataset/dataset_v0.2_2023-11-26.json'
-DATASET_JSON_PATH = "dataset/" + "dataset_v0.2.5-sr-seed42-remove-no-l1c.json"
+DATASET_JSON_PATH = "dataset/" + "dataset_v0.3.1-sr-seed42-remove-no-l1c.json"
 
 RIVER_NETWORKS_DIR = "/data/sand_mining/rivers/"
 
-NUM_EPOCHS = 10
+NUM_EPOCHS = 30
+
+RUN_NAME = "Satlas-A-SR-Seed42"
 
 # Number of pixels to discard at the edge of every window's prediction (in inference/evaluation mode)
 # Sliding window stride will depend on this value

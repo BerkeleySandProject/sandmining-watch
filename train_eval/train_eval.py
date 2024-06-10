@@ -27,12 +27,16 @@ def main(_):
     from project_config import GCP_PROJECT_NAME
     from project_config import DATASET_JSON_PATH
     from project_config import NUM_EPOCHS
+    from project_config import RUN_NAME
 
     gcp_client = storage.Client(project=GCP_PROJECT_NAME)
     from utils.rastervision_pipeline import GoogleCloudFileSystem
 
     GoogleCloudFileSystem.storage_client = gcp_client
-    from experiment_configs.configs import satlas_swin_base_si_ms_linear_decoder_config
+    from experiment_configs.configs import (
+        satlas_swin_base_si_ms_linear_decoder_config,
+        lora_config,
+    )
     from ml.learner_factory import learner_factory
     import torch
 
@@ -64,53 +68,50 @@ def main(_):
     )  # Combine root directory with the relative path
 
     dataset_json = json.load(open(json_abs_path, "r"))
-    all_scenes = [
-        observation_to_scene(config, observation)
-        for i, observation in enumerate(observation_factory(dataset_json))
-    ]
-    cluster_ids = [
-        observation.cluster_id
-        for i, observation in enumerate(observation_factory(dataset_json))
-    ]
 
-    VALIDATION_CLUSTER_ID = 9
-    for cid in np.unique(cluster_ids):
-        scene_idx = [i for i in range(len(cluster_ids)) if cluster_ids[i] == cid]
-        val_idx = random.sample(scene_idx, 1)[0]
-        cluster_ids[val_idx] = VALIDATION_CLUSTER_ID
+    VALIDATION_CLUSTER_ID = max(
+        [observation["cluster_id"] for observation in dataset_json]
+    )
+    all_observations = observation_factory(dataset_json)
 
-    training_scenes = [
-        scene_to_training_ds(config, scene, n_windows=200)
-        for scene, cid in zip(all_scenes, cluster_ids)
-        if cid != VALIDATION_CLUSTER_ID
+    training_scenes = []
+    validation_scenes = []
+
+    for observation in all_observations:
+        if observation.cluster_id == VALIDATION_CLUSTER_ID:
+            validation_scenes.append(observation_to_scene(config, observation))
+        else:
+            training_scenes.append(observation_to_scene(config, observation))
+
+    print('Using "spatially-random" validation cluster id: ', VALIDATION_CLUSTER_ID)
+
+    training_datasets = [
+        # random window sampling happens here
+        scene_to_training_ds(config, scene)
+        for scene in training_scenes
     ]
-    # validation_datasets = [
-    #     scene_to_inference_ds(
-    #         # According to Ando's inference strategy page
-    #         config,
-    #         scene,
-    #         full_image=False,
-    #         stride=int(config.tile_size - 60),
-    #     )
-    #     for scene, cid in zip(all_scenes, cluster_ids)
-    #     if cid == VALIDATION_CLUSTER_ID
-    # ]
-    #
-    validation_scenes = [
-        scene_to_validation_ds(config, scene)
-        for scene, cid in zip(all_scenes, cluster_ids)
-        if cid == VALIDATION_CLUSTER_ID
+    validation_datasets = [
+        # scene_to_validation_ds(config, scene) for scene in validation_scenes
+        # better performance with this
+        scene_to_inference_ds(
+            config, scene, full_image=False, stride=int(config.tile_size / 2)
+        )
+        for scene in validation_scenes
     ]
-
-    ipdb.set_trace()
-    train_dataset_merged = ConcatDataset(training_scenes)
-    val_dataset_merged = ConcatDataset(validation_scenes)
-
     # DEBUG: Check training and validation datasets
-    train_dataset_merged = ConcatDataset(training_scenes)
-    val_dataset_merged = ConcatDataset(validation_scenes)
+    train_dataset_merged = ConcatDataset(training_datasets)
+    val_dataset_merged = ConcatDataset(validation_datasets)
 
-    mine_percentage_aoi = characterize_dataset(training_scenes, validation_scenes)
+    print("Training dataset size: {:4d} images".format(
+        len(train_dataset_merged)))
+    print("Testing dataset size: {:4d}  images".format(
+        len(val_dataset_merged)))
+
+    mine_percentage_aoi = characterize_dataset(
+        training_scenes, validation_scenes)
+    # Update mine class weight
+    # config.mine_class_loss_weight = 10
+    # print("Updating mine class weight:", config.mine_class_loss_weight)
 
     # Train
     from models.model_factory import model_factory, print_trainable_parameters
@@ -119,22 +120,16 @@ def main(_):
     from ml.learner import BinarySegmentationLearner, MultiSegmentationLearner
     from utils.rastervision_pipeline import scene_to_inference_ds
 
-    _, _, n_channels = training_scenes[0].scene.raster_source.shape
+    _, _, n_channels = training_datasets[0].scene.raster_source.shape
 
-    model = model_factory(
-        config,
-        n_channels=n_channels,
-    )
+    model = model_factory(config, n_channels=n_channels,
+                          config_lora=lora_config)
 
     print("Before LoRA: ")
     all_params, trainable_params = count_number_of_weights(model)
     print(
         f"trainable_params: {trainable_params/1e6}M | | all params: {all_params/1e6}M | | trainable %: {100 * trainable_params // all_params: .2f}"
     )
-
-    from peft import LoraConfig, get_peft_model
-
-    model = get_peft_model(model, LoraConfig)
 
     optimizer = optimizer_factory(config, model)
 
@@ -146,7 +141,8 @@ def main(_):
         train_ds=train_dataset_merged,
         # for development and debugging, use training_datasets[1] or similar to speed up
         valid_ds=val_dataset_merged,
-        output_dir=("~/sandmining-watch/out/OUTPUT_DIR/satlas_spatial_random_lora"),
+        output_dir=(
+            "~/sandmining-watch/out/OUTPUT_DIR/satlas_spatial_random_lora"),
         save_model_checkpoints=True,
     )
 
@@ -155,7 +151,8 @@ def main(_):
     learner.log_data_stats()
 
     # Run this if you want to log the run to weights and biases
-    learner.initialize_wandb_run()
+    learner.initialize_wandb_run(run_name=RUN_NAME)
+    print(f"Number of epochs: {NUM_EPOCHS}")
     learner.train(epochs=NUM_EPOCHS)
 
     def evaluate():
@@ -179,7 +176,8 @@ def main(_):
                 evaluation_datasets.append(
                     scene_to_inference_ds(
                         config,
-                        observation_to_scene(config, observation, weights_class=False),
+                        observation_to_scene(
+                            config, observation, weights_class=False),
                         full_image=True,
                     )
                 )
@@ -219,7 +217,8 @@ def main(_):
                 }
             )
 
-        evaluation_results_dict = evaluate_predicitions(prediction_results_list)
+        evaluation_results_dict = evaluate_predicitions(
+            prediction_results_list)
 
         assert wandb.run is not None
 
