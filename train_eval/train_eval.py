@@ -71,7 +71,10 @@ print("Using \"spatially-random\" validation cluster id: ", val_cluster_id)
 # print("Created new \"spatially-random\" validation cluster id: ", val_cluster_id)
     
 training_datasets = [scene_to_training_ds(config, scene) for scene, cid in zip(all_scenes, cluster_ids) if cid != val_cluster_id]
-validation_datasets = [scene_to_inference_ds(config, scene, full_image=False, stride=int(config.tile_size/2)) for scene, cid in zip(all_scenes, cluster_ids) if cid == val_cluster_id]
+#Use 50% overlap sliding window:
+# validation_datasets = [scene_to_inference_ds(config, scene, full_image=False, stride=int(config.tile_size/2)) for scene, cid in zip(all_scenes, cluster_ids) if cid == val_cluster_id]
+#Random sampling:
+validation_datasets = [scene_to_training_ds(config, scene) for scene, cid in zip(all_scenes, cluster_ids) if cid == val_cluster_id]
 
 
 train_dataset_merged = ConcatDataset(training_datasets)
@@ -80,6 +83,8 @@ val_dataset_merged = ConcatDataset(validation_datasets)
 print('Validation split cluster_id:', val_cluster_id)
 print ('Training dataset size: {:4d} images'.format(len(train_dataset_merged)))
 print ('Testing dataset size: {:4d}  images'.format(len(val_dataset_merged)))
+perc_val = len(val_dataset_merged) / (len(val_dataset_merged) + len(train_dataset_merged))
+print(f'Ratio of train:val: {1-perc_val: .2f}:{perc_val:.2f}')
 
 #update mine class weight
 config.mine_class_loss_weight = 10
@@ -107,4 +112,4 @@ learner = learner_factory(
 print_trainable_parameters(learner.model)
 
 learner.initialize_wandb_run(project="DS-v03", run_name="SatMAE-A-SR-Seed42")
-learner.train(epochs=30)
+learner.train(epochs=25)

@@ -398,11 +398,11 @@ class Learner(ABC):
     
     def save_model_weights(self, path: str, save_lora=True):
         """Save model weights to path."""
-        print("Saving model weights to {}".format(path))
+        print("Saving final model weights to {}".format(path))
         if save_lora and isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
-            self.model.save_pretrained(".".join(path.split(".")[:-1]))
-            
-        torch.save(self.model.state_dict(), path)
+            self.model.save_pretrained(".".join(path.split(".")[:-1]).join("_lora"))
+        else:
+            torch.save(self.model.state_dict(), path)
         
 
     def on_epoch_end(self, curr_epoch, metrics):

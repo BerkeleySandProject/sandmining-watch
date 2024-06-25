@@ -264,6 +264,10 @@ def characterize_dataset(training_scenes: Scene, validation_scenes: Scene):
     mine_percentage, _ = calc_class_proportion(all_labels_train)
     print(f"Training dataset has {mine_percentage:.2f}%  mining area.")
 
+    perc_val = len(all_labels_val) / (len(all_labels_val) + len(all_labels_train))
+
+    print(f'Ratio of train:val: {1-perc_val: .2f}:{perc_val:.2f}')
+
     mine_percentage, _ = calc_class_proportion(all_labels_val)
     print(f"Validation dataset has {mine_percentage:.2f}%  mining area.")
 

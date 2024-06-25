@@ -96,6 +96,7 @@ class InferenceConfig(SupervisedTrainingConfig):
     
 @dataclass 
 class ThreeClassInferenceConfig(InferenceConfig, ThreeClassConfig):
+    lora_weights_path: Optional[str] = None
     pass
 
 

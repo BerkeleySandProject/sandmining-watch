@@ -211,11 +211,11 @@ satmae_large_inf_config = InferenceConfig(
     tile_size=160,
     s2_channels=satmea_pretrained_encoder_bands_idx,
     s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=128,
+    batch_size=100,
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=0., #unused in inference mode
-    encoder_weights_path='/data/sand_mining/checkpoints/finetuned/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_E9_SmoothVal-S5-DecOnly-E20.pth',
+    encoder_weights_path='/data/sand_mining/checkpoints/finetuned/SatMAE-L-LoRA-3C-MethodA/SatMAE-L-LoRA-3C-MethodA-SR-v3.2-strip.pth',
     loss_fn=BackpropLossChoice.BCE,
     crop_sz=0,
     apply_smoothing=True,
@@ -236,25 +236,27 @@ satmae_large_methoda_inf_config = ThreeClassInferenceConfig(
     **vars(satmae_large_inf_config)
 )
 
-satmae_large_inf_config1 = InferenceConfig(
+satmae_large_methoda_lora_inf_config = ThreeClassInferenceConfig(
+    three_class_training_method=ThreeClassVariants.A,
+    low_confidence_weight=0.,
+    encoder_weights_path = "/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
+    lora_weights_path = "/data/sand_mining/checkpoints/finetuned/SatMAE-L-LoRA-3C-MethodA",
     model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
     optimizer=OptimizerChoice.AdamW,
     tile_size=160,
     s2_channels=satmea_pretrained_encoder_bands_idx,
     s2_normalization=NormalizationS2Choice.ChannelWise,
-    batch_size=128,
+    batch_size=100,
     learning_rate=1e-3,
     datasets=DatasetChoice.S2,
     mine_class_loss_weight=0., #unused in inference mode
-    encoder_weights_path='/data/sand_mining/checkpoints/finetuned/SatMAE-L_LoRA-bias_LN_160px_mclw-6_B8_SmoothVal_E-20.pth',  
     loss_fn=BackpropLossChoice.BCE,
     crop_sz=0,
     apply_smoothing=True,
     smoothing_sigma=5.,
-    wandb_id='sandmining-watch/sandmine_detector/mvuyz9n4',
-    mean_threshold=0.4336,
+    wandb_id='sandmining-watch/sandmine_detector/6r8ypwmb',
+    mean_threshold=0.51,
 )
-
 
 
 
