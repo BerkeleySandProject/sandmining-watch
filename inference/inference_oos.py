@@ -74,7 +74,7 @@ parser.add_argument("start_date", help="start date of period in yyyy-mm-dd forma
 parser.add_argument("end_date", help="end date of period in yyyy-mm-dd format")
 parser.add_argument("-c", "--collection", help="Name of Sentinel Collection. Currently only supports S2-HARMONIZED", default = "S2_HARMONIZED")
 parser.add_argument('-r', '--rivernames', nargs='+', default=[], help="provide river names to process")
-parser.add_argument('-o', '--overwrite', default = False)
+parser.add_argument('-o', '--overwrite', default = False, action='store_true')
 parser.add_argument('-k', '--config', default = "satmae_large_methoda_lora_inf_config")
 # parser.add_argument('-a', '--all_rivers', help="load all river names",
 #                     action="store_true")
@@ -197,7 +197,13 @@ def make_prediction(river_name, timestep):
 if len(args.rivernames) > 0:
     for river in args.rivernames:
         scorefile = f"/data/sand_mining/inference/outputs/{args.start_date}_{args.end_date}/{river}/scores.tif"
-        if (args.overwrite) | (not os.path.exists(scorefile)):
+        if not os.path.exists(scorefile):
+            print(river, datetime.now())
+            make_prediction(river, f"{args.start_date}_{args.end_date}")
+        elif args.overwrite:
+            for f in ['scores.tif', 'pixel_hits.npy', 'mask.tif']:
+                os.remove(f"/data/sand_mining/inference/outputs/{args.start_date}_{args.end_date}/{river}/{f}")
+            
             print(river, datetime.now())
             make_prediction(river, f"{args.start_date}_{args.end_date}")
         else:
