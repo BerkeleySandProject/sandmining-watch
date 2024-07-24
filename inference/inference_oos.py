@@ -22,7 +22,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
-from babelgrid import Babel
 
 from google.cloud import storage
 from google.oauth2 import service_account
@@ -111,7 +110,7 @@ predictor = BinarySegmentationPredictor(
     path_to_lora =  config.lora_weights_path
 )
 
-crop_sz = int(config.tile_size // 5) #20% of the tiles at the edges are discarded
+# crop_sz = int(config.tile_size // 5) #20% of the tiles at the edges are discarded
 
 all_params, trainable_params = count_number_of_weights(predictor.model)
 print(f"trainable params: {trainable_params/1e6}M || all params: {all_params/1e6}M || trainable%: {100 * trainable_params / all_params:.2f}")
@@ -133,7 +132,7 @@ def make_prediction(river_name, timestep):
     r_source = create_scene_s2(config, uri_to_s2, label_uri = None, scene_id = 0, rivers_uri = RIVER_URI)
     r_inference = scene_to_inference_ds(config, r_source, full_image=False, stride=int(config.tile_size/2))
     crs_transformer = r_inference.scene.raster_source.crs_transformer
-    prediction = predictor.predict_site(r_inference, crop_sz=crop_sz)
+    prediction = predictor.predict_site(r_inference, crop_sz=config.crop_sz)
 
 
     print("Saving..", datetime.now())
@@ -224,7 +223,8 @@ else:
       'Gomti':'Gomati', 
        'Bagmati':'Baghmati', 
       'North Koel':'North-Koel', 
-     'Burhi Gandak':'Burhi-Gandak'
+     'Burhi Gandak':'Burhi-Gandak', 
+     'Kali Sindh':'Kali-Sindh'
                                                              
     })
     river_names = np.sort(df_rivers['rivname_clean'].unique())

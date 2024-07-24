@@ -418,8 +418,8 @@ else:
       'Gomti':'Gomati', 
        'Bagmati':'Baghmati', 
       'North Koel':'North-Koel', 
-     'Burhi Gandak':'Burhi-Gandak'
-                                                                                                                                  
+     'Burhi Gandak':'Burhi-Gandak',
+         'Kali Sindh':'Kali-Sindh'                                                                                                                          
     })
     
     river_names = np.sort(df_rivers['rivname_clean'].unique())
