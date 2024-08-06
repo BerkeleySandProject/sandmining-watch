@@ -286,7 +286,7 @@ def custom_sample_window(self) -> Box:
                 return window
         raise StopIteration('Failed to find random window within scene AOI.')
 
-def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_centroids = True):
+def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_centroids = True, multiplier:int=2):
     
     """
     Returns a dataset for training. The dataset will sample windows from the scene in a random fashion.
@@ -298,8 +298,7 @@ def scene_to_training_ds(config: SupervisedTrainingConfig, scene: Scene, aoi_cen
     for aoi in scene.aoi_polygons:
         aoi_area += aoi.area
 
-    # n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 4
-    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * 2
+    n_windows = int(np.ceil(aoi_area / config.tile_size ** 2)) * multiplier
 
     ds = SemanticSegmentationRandomWindowGeoDataset(
         scene,

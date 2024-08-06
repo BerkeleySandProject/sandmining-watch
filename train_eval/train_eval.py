@@ -19,7 +19,7 @@ import random
 from google.cloud import storage
 from utils.rastervision_pipeline import GoogleCloudFileSystem
 from project_config import GCP_PROJECT_NAME, DATASET_JSON_PATH
-from experiment_configs.configs import lora_config, satmae_large_config_lora_methodA
+from experiment_configs.configs import lora_config, satmae_large_config_lora_methodA, satmae_large_config_lora_methodB
 from torch.utils.data import ConcatDataset
 from utils.data_management import observation_factory
 
@@ -35,10 +35,18 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
 
+methodA = True
 
+if methodA:
+    config = satmae_large_config_lora_methodA
+else:
+    config = satmae_large_config_lora_methodB
 
-config = satmae_large_config_lora_methodA
-lora_config = lora_config
+# lora_config = lora_config
+dense = False
+num_epochs = 50
+config.learning_rate = 1e-4
+
 
 
 GoogleCloudFileSystem.storage_client = gcp_client
@@ -70,7 +78,13 @@ print("Using \"spatially-random\" validation cluster id: ", val_cluster_id)
 #     cluster_ids[val_idx] = val_cluster_id
 # print("Created new \"spatially-random\" validation cluster id: ", val_cluster_id)
     
-training_datasets = [scene_to_training_ds(config, scene) for scene, cid in zip(all_scenes, cluster_ids) if cid != val_cluster_id]
+if not dense:
+    training_datasets = [scene_to_training_ds(config, scene) for scene, cid in zip(all_scenes, cluster_ids) if cid != val_cluster_id]
+else:
+    print("Running a dense training sample regime!")
+    # Use a dense sliding window sampling strategy for training
+    training_datasets = [scene_to_inference_ds(config, scene, full_image=False, stride=int(config.tile_size/2)) for scene, cid in zip(all_scenes, cluster_ids) if cid != val_cluster_id]
+#Random sampling:
 #Use 50% overlap sliding window:
 # validation_datasets = [scene_to_inference_ds(config, scene, full_image=False, stride=int(config.tile_size/2)) for scene, cid in zip(all_scenes, cluster_ids) if cid == val_cluster_id]
 #Random sampling:
@@ -87,9 +101,8 @@ perc_val = len(val_dataset_merged) / (len(val_dataset_merged) + len(train_datase
 print(f'Ratio of train:val: {1-perc_val: .2f}:{perc_val:.2f}')
 
 #update mine class weight
-config.mine_class_loss_weight = 10
-print('Updating mine class weight:', config.mine_class_loss_weight)
-
+# config.mine_class_loss_weight = 15
+print('Mine class weight:', config.mine_class_loss_weight)
 
 
 _, _, n_channels = training_datasets[0].scene.raster_source.shape
@@ -107,9 +120,21 @@ learner = learner_factory(
     optimizer=optimizer,
     train_ds=train_dataset_merged,  # for development and debugging, use training_datasets[0] or similar to speed up
     valid_ds=val_dataset_merged,  # for development and debugging, use training_datasets[1] or similar to speed up
-    output_dir=expanduser("~/sandmining-watch/out/MethodA-Seed0")
+    output_dir=expanduser("~/sandmining-watch/out/MethodB-Seed42-d-dense")
 )
 print_trainable_parameters(learner.model)
 
-learner.initialize_wandb_run(project="DS-v03", run_name="SatMAE-A-SR-Seed42")
-learner.train(epochs=25)
+name = f"SatMAE-seed{seed}-Method"
+
+if methodA:
+    name += "A"
+else:
+    name += "B"
+
+if dense:
+    name += "-dense"
+
+
+
+learner.initialize_wandb_run(project="DS-v03", run_name=name)
+learner.train(epochs=num_epochs)
