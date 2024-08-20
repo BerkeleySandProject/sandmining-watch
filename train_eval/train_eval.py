@@ -22,6 +22,8 @@ from project_config import GCP_PROJECT_NAME, DATASET_JSON_PATH
 from experiment_configs.configs import lora_config, satmae_large_config_lora_methodA, satmae_large_config_lora_methodB
 from torch.utils.data import ConcatDataset
 from utils.data_management import observation_factory
+from datetime import datetime
+
 
 gcp_client = storage.Client(project=GCP_PROJECT_NAME)
 
@@ -44,7 +46,7 @@ else:
 
 # lora_config = lora_config
 dense = False
-num_epochs = 50
+num_epochs = 45
 config.learning_rate = 1e-4
 
 
@@ -114,17 +116,9 @@ model = model_factory(
 
 optimizer = optimizer_factory(config, model)
 
-learner = learner_factory(
-    config=config,
-    model=model,
-    optimizer=optimizer,
-    train_ds=train_dataset_merged,  # for development and debugging, use training_datasets[0] or similar to speed up
-    valid_ds=val_dataset_merged,  # for development and debugging, use training_datasets[1] or similar to speed up
-    output_dir=expanduser("~/sandmining-watch/out/MethodB-Seed42-d-dense")
-)
-print_trainable_parameters(learner.model)
-
 name = f"SatMAE-seed{seed}-Method"
+
+current_date = datetime.now().date().strftime("%Y-%m-%d")
 
 if methodA:
     name += "A"
@@ -134,6 +128,17 @@ else:
 if dense:
     name += "-dense"
 
+name += f"-{current_date}"
+
+learner = learner_factory(
+    config=config,
+    model=model,
+    optimizer=optimizer,
+    train_ds=train_dataset_merged,  # for development and debugging, use training_datasets[0] or similar to speed up
+    valid_ds=val_dataset_merged,  # for development and debugging, use training_datasets[1] or similar to speed up
+    output_dir = f"/data/sand_mining/checkpoints/finetuned/{name}" #=expanduser(f"~/sandmining-watch/out/{name}")
+)
+print_trainable_parameters(learner.model)
 
 
 learner.initialize_wandb_run(project="DS-v03", run_name=name)

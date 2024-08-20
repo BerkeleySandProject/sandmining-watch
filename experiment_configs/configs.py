@@ -258,6 +258,28 @@ satmae_large_methoda_lora_inf_config = ThreeClassInferenceConfig(
     mean_threshold=0.51,
 )
 
+satmae_large_methodb_lora_inf_config = ThreeClassInferenceConfig(
+    three_class_training_method=ThreeClassVariants.B,
+    low_confidence_weight=0.,
+    encoder_weights_path = "/data/sand_mining/checkpoints/satmae_orig/pretrain-vit-large-e199.pth",
+    lora_weights_path = "/data/sand_mining/checkpoints/finetuned/SatMAE-L-LoRA-3C-MethodA",
+    model_type=ModelChoice.SatmaeLargeDoubleUpsampling,
+    optimizer=OptimizerChoice.AdamW,
+    tile_size=160,
+    s2_channels=satmea_pretrained_encoder_bands_idx,
+    s2_normalization=NormalizationS2Choice.ChannelWise,
+    batch_size=100,
+    learning_rate=1e-3,
+    datasets=DatasetChoice.S2,
+    mine_class_loss_weight=0., #unused in inference mode
+    loss_fn=BackpropLossChoice.BCE,
+    crop_sz=0,
+    apply_smoothing=True,
+    smoothing_sigma=5.,
+    wandb_id='sandmining-watch/sandmine_detector/6r8ypwmb',
+    mean_threshold=0.51,
+)
+
 
 
 ###########LoRA Configs

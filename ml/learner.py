@@ -100,6 +100,11 @@ class Learner(ABC):
             self.best_model_weights_path = join(self.output_dir, "best-model.pth")
             self.best_average_precision_score = 0
             self.last_model_weights_path = join(self.output_dir, 'last-model.pth')
+
+            if isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
+                self.lora_path = join(self.output_dir, "lora")
+                make_dir(self.lora_path)
+
         else:
             self.best_model_weights_path = None
             self.best_average_precision_score = None
@@ -396,23 +401,42 @@ class Learner(ABC):
         """Hook that is called at start of train routine."""
         pass
     
-    def save_model_weights(self, path: str, save_lora=True):
+    def save_model_weights(self, path: str, save_lora=True, curr_epoch=None):
         """Save model weights to path."""
-        print("Saving final model weights to {}".format(path))
+        
         if save_lora and isinstance(self.config, SupervisedFinetuningConfig) and self.config.finetuning_strategy == FinetuningStratagyChoice.LoRA:
-            self.model.save_pretrained(".".join(path.split(".")[:-1]).join("_lora"))
+            print("Saving LoRa model weights to {}".format(self.lora_path))
+
+            if curr_epoch is not None:
+                new_dir = str(curr_epoch)
+                new_dir = join(self.lora_path, new_dir)
+                make_dir(new_dir)
+                self.model.save_pretrained(new_dir)
+            else:
+                self.model.save_pretrained(self.lora_path)
         else:
+            print("Saving final model weights to {}".format(path))
             torch.save(self.model.state_dict(), path)
         
+    def save_merged_model(self, path: str):
+        #Merge LoRA weights into model
+        merged_model = self.model.merge_and_unload()
+        #Save using PEFT method
+        # merged_model.save_pretrained(path.split("best-model.pth")[0])
+        #Save using Torch method
+        torch.save(self.merged_model.state_dict(), path)
 
     def on_epoch_end(self, curr_epoch, metrics):
         """Hook that is called at end of epoch."""
         if self.last_model_weights_path:
-            self.save_model_weights(self.last_model_weights_path)
+            self.save_model_weights(self.last_model_weights_path, curr_epoch=curr_epoch)
             
         if metrics["sandmine_average_precision"] > self.best_average_precision_score:
+            print(f"New best average precision score: {metrics['sandmine_average_precision']}.\
+                   \nAttempting to save checkpoint to {self.best_model_weights_path}")
             self.best_average_precision_score = metrics["sandmine_average_precision"]
-            self.save_model_weights(self.best_model_weights_path)
+            # self.save_model_weights(self.best_model_weights_path)
+            self.save_merged_model(self.best_model_weights_path)
 
         if self.model_checkpoints_dir:
             torch.save(self.model.state_dict(), f"{self.model_checkpoints_dir}/after_epoch_{curr_epoch}.pth")
@@ -696,11 +720,17 @@ class Predictor(ABC):
         self.model = model
         self.model.to(device=self.device)
         
-        if path_to_weights: #only load decoder weightss
+        if path_to_weights and path_to_lora: #then only load decoder weights from path_to_weight, and then use lora
+            print("(Predictor) Loading decoder weights from {}".format(path_to_weights))
             self.model.load_decoder_weights(path_to_weights)
-            if path_to_lora:
-                self.model = PeftModel.from_pretrained(self.model, path_to_lora)
 
+            print("(Predictor) Loading LoRa weights from {}".format(path_to_lora))
+            self.model = PeftModel.from_pretrained(self.model, path_to_lora)
+        elif path_to_weights: #load encoder and decoder from path_to_weights
+            print("(Predictor) Loading ALL weights from {}".format(path_to_weights))
+            self.model.load_state_dict(
+                torch.load(path_to_weights, map_location=self.device)
+            )
 
         self.class_names = self.get_class_names()
         self.num_workers = 0 # 0 means no multiprocessing
